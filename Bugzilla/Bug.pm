@@ -1221,6 +1221,7 @@ sub update {
   # XXX Eventually, when bugs_activity is able to track the dupe_id,
   # this code should go below the duplicates-table-updating code below.
   foreach my $field (keys %$changes) {
+    next if $field eq 'flagtypes.name';    # now tracked in flag_activity
     my $change = $changes->{$field};
     my $from   = defined $change->[0] ? $change->[0] : '';
     my $to     = defined $change->[1] ? $change->[1] : '';
