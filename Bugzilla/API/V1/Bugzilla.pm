@@ -116,13 +116,15 @@ sub jobqueue_status {
     };
 
   my $status;
+  my $failed;
   try {
     $status = $dbh->selectrow_hashref($query);
   }
   catch {
     ERROR($_);
+    $failed = 1;
   };
-  return $self->code_error('jobqueue_status_error') unless $status;
+  return $self->code_error('jobqueue_status_error') if $failed;
 
   return $self->render(
     json => {
