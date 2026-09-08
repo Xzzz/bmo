@@ -1003,7 +1003,13 @@ sub _send_flag_type_cc_raw_mail {
     my $message;
     $template->process(
       "email/bugmail-flagtype-cc.txt.tmpl",
-      {to => $to, bug => $bug, date => $date, flag_events => $raw_addresses->{$to}},
+      {
+        to              => $to,
+        bug             => $bug,
+        date            => $date,
+        flag_events     => $raw_addresses->{$to},
+        threadingmarker => build_thread_marker($bug->id, 0, 0),
+      },
       \$message
     ) || ThrowTemplateError($template->error());
     MessageToMTA($message);

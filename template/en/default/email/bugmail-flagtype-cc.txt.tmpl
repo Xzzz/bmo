@@ -22,6 +22,7 @@ Subject: [[% terms.Bug %] [%+ bug.id %]] [% bug.short_desc %]
 Date: [% date %]
 X-Bugzilla-Type: request
 [%+ INCLUDE "email/header-common.txt.tmpl" %]
+[%+ threadingmarker %]
 
 [%+ urlbase %]show_bug.cgi?id=[% bug.id %]
 
