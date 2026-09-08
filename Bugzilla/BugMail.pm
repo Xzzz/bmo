@@ -891,7 +891,7 @@ sub _get_flag_mail_events {
       push @events,
         {
         action        => 'requested',
-        type          => Bugzilla::FlagType->new({id => $row->{type_id}, cache => 1}),
+        type          => Bugzilla::FlagType->new_from_list([$row->{type_id}])->[0],
         attachment_id => $row->{attachment_id},
         attachment    => $row->{attachment_id}
         ? Bugzilla::Attachment->new({id => $row->{attachment_id}, cache => 1})
@@ -925,7 +925,7 @@ sub _get_flag_mail_events {
       push @events,
         {
         action        => 'answered',
-        type          => Bugzilla::FlagType->new({id => $row->{type_id}, cache => 1}),
+        type          => Bugzilla::FlagType->new_from_list([$row->{type_id}])->[0],
         attachment_id => $row->{attachment_id},
         attachment    => $row->{attachment_id}
         ? Bugzilla::Attachment->new({id => $row->{attachment_id}, cache => 1})
