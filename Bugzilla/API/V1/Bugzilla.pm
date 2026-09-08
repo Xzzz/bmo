@@ -92,10 +92,10 @@ sub time {
 sub jobqueue_status {
   my ($self) = @_;
 
+  Bugzilla->usage_mode(USAGE_MODE_MOJO_REST);
+
   my $user = $self->bugzilla->login;
   $user->id || return $self->user_error('login_required');
-
-  Bugzilla->usage_mode(USAGE_MODE_MOJO_REST);
 
   my $dbh   = Bugzilla->dbh;
   my $query = q{

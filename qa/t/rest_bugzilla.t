@@ -56,6 +56,10 @@ $t->get_ok($url . 'rest/time')->status_is(200)->json_has('/db_time')
 $t->get_ok($url . 'rest/jobqueue_status' => {'X-Bugzilla-API-Key' => $api_key})
   ->status_is(200)->json_is('/errors' => 0);
 
+# Anonymous access must return the JSON login_required error, not a 404
+$t->get_ok($url . 'rest/jobqueue_status')->status_is(401)
+  ->json_is('/error' => 1)->json_has('/message');
+
 # Check the configuration data for this Bugzilla instance
 $t->get_ok($url . 'rest/configuration')->status_is(200)
   ->json_is('/version' => BUGZILLA_VERSION)->json_has('/product');
