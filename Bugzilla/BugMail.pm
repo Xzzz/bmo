@@ -704,7 +704,7 @@ sub dequeue {
           ? Bugzilla::Attachment->new({id => $_->{attachment_id}, cache => 1})
           : undef,
       }
-    } @{$vars->{flag_events}}
+    } @{$vars->{flag_events} || []}
   ];
   $vars->{flag_events}
     = [grep { _flag_event_visible_to($_, $vars->{to_user}) } @{$vars->{flag_events}}];
