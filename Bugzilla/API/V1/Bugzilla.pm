@@ -119,8 +119,8 @@ sub jobqueue_status {
   }
   catch {
     ERROR($_);
-    return $self->code_error('jobqueue_status_error');
   };
+  return $self->code_error('jobqueue_status_error') unless $status;
 
   return $self->render(
     json => {
