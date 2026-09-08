@@ -328,15 +328,25 @@ sub Send {
     # Deleted users must be excluded.
     next unless $user;
 
-    # If email notifications are disabled for this account, or the bug
-    # is ignored, there is no need to do additional checks.
-    next if ($user->email_disabled || $user->is_bug_ignored($id));
+    # If email notifications are disabled for this account, there is no need
+    # to do additional checks.
+    next if $user->email_disabled;
 
     if ($user->can_see_bug($id)) {
 
-      # Go through each role the user has and see if they want mail in
-      # that role.
+      # The ignore list only silences the normal per-field bugmail; flag
+      # notifications (needinfo etc.) are opt-in on their own via wants_mail()
+      # below and, like old notify(), are not suppressed by it (bug 1883428)
+      my $is_bug_ignored = $user->is_bug_ignored($id);
+
+      # Go through each role the user has and see if they want mail in that role
       foreach my $relationship (keys %{$recipients{$user_id}}) {
+        my $is_flag_relationship
+          = $relationship == REL_FLAG_REQUESTEE
+          || $relationship == REL_FLAG_REQUESTER
+          || $relationship == REL_FLAG_TYPE_CC;
+        next if $is_bug_ignored && !$is_flag_relationship;
+
         my $wants_mail;
         if ($relationship == REL_FLAG_REQUESTEE) {
 
