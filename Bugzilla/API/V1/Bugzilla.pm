@@ -50,6 +50,7 @@ sub version {
 sub extensions {
   my ($self) = @_;
   Bugzilla->usage_mode(USAGE_MODE_MOJO_REST);
+  $self->bugzilla->login();
 
   my %extensions;
   foreach my $extension (@{Bugzilla->extensions}) {
@@ -70,6 +71,7 @@ sub timezone {
 sub time {
   my ($self) = @_;
   Bugzilla->usage_mode(USAGE_MODE_MOJO_REST);
+  $self->bugzilla->login();
 
   # All Webservices return times in UTC; Use UTC here for backwards compat.
   my $dbh     = Bugzilla->dbh;
