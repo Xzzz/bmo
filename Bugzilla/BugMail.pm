@@ -781,7 +781,7 @@ sub dequeue {
   }
 
   # If nothing remains to send, bail.
-  unless (@{$vars->{diffs}} || @{$vars->{new_comments}}) {
+  unless (@{$vars->{diffs}} || @{$vars->{new_comments}} || @{$vars->{flag_events}}) {
     WARN('dequeue: suppressing bugmail for user '
       . $vars->{to_user}->login . ' on bug ' . $vars->{bug}->id
       . ' — all diffs and comments stripped by dequeue-time visibility re-check');
