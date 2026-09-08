@@ -74,8 +74,8 @@ sub time {
   # All Webservices return times in UTC; Use UTC here for backwards compat.
   my $dbh     = Bugzilla->dbh;
   my $db_time = $dbh->selectrow_array('SELECT LOCALTIMESTAMP(0)');
-  $db_time = datetime_from($db_time, 'UTC')->iso8601();
-  my $now_utc = DateTime->now()->iso8601();
+  $db_time = datetime_from($db_time, 'UTC')->iso8601() . 'Z';
+  my $now_utc = DateTime->now()->iso8601() . 'Z';
 
   return $self->render(
     json => {
