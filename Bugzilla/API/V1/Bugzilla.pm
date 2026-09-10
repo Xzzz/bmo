@@ -55,7 +55,7 @@ sub extensions {
 
   my %extensions;
   foreach my $extension (@{Bugzilla->extensions}) {
-    $extensions{$extension->NAME} = {version => $extension->VERSION || 0};
+    $extensions{$extension->NAME} = {version => '' . ($extension->VERSION || 0)};
   }
 
   return $self->render(json => {extensions => \%extensions});
