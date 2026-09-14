@@ -23,9 +23,9 @@ sub setup_routes {
   my $routes = $r->under(
     '/bug_user_last_visit' => sub { Bugzilla->usage_mode(USAGE_MODE_MOJO_REST); });
   $routes->get('/')->to('V1::BugUserLastVisit#get');
-  $routes->get('/:id')->to('V1::BugUserLastVisit#get');
+  $routes->get('/:id' => [id => qr/\d+/])->to('V1::BugUserLastVisit#get');
   $routes->post('/')->to('V1::BugUserLastVisit#update');
-  $routes->post('/:id')->to('V1::BugUserLastVisit#update');
+  $routes->post('/:id' => [id => qr/\d+/])->to('V1::BugUserLastVisit#update');
 
   foreach my $path ('/', '/:id') {
     $routes->options($path)->to('V1::BugUserLastVisit#options');
@@ -108,7 +108,7 @@ sub update {
     $bug->update_user_last_visit($user, $last_visit_ts);
 
     push(@results,
-      $self->_bug_user_last_visit_to_hash($bug_id, $last_visit_ts, $params));
+      $self->_bug_user_last_visit_to_hash($bug->id, $last_visit_ts, $params));
   }
   $dbh->bz_commit_transaction();
 
