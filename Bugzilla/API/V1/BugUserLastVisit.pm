@@ -47,7 +47,8 @@ sub get {
   my $user = $self->bugzilla->login;
   $user->id || return $self->user_error('login_required');
 
-  my ($ids) = $self->_ids_from_request;
+  my ($ids, $error, $vars) = $self->_ids_from_request;
+  return $self->user_error($error, $vars) if $error;
 
   if ($ids) {
 
@@ -83,8 +84,8 @@ sub update {
   my $user = $self->bugzilla->login;
   $user->id || return $self->user_error('login_required');
 
-  my ($ids, $error) = $self->_ids_from_request;
-  return $self->user_error($error) if $error;
+  my ($ids, $error, $vars) = $self->_ids_from_request;
+  return $self->user_error($error, $vars) if $error;
   return $self->code_error('param_required', {param => 'ids'})
     unless $ids && @$ids;
 
@@ -122,7 +123,9 @@ sub _ids_from_request {
   }
 
   my $ids = $self->_request_params->{ids} // [];
-  return ref $ids ? $ids : [$ids];
+  return (undef, 'invalid_params', {type_error => 'ids must be an array'})
+    if ref $ids && ref $ids ne 'ARRAY';
+  return ref $ids eq 'ARRAY' ? $ids : [$ids];
 }
 
 sub _request_params {
