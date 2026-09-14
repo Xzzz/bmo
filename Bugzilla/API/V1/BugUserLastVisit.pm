@@ -66,7 +66,7 @@ sub get {
     @last_visits = grep { $id_set{$_->bug_id} } @last_visits;
   }
 
-  my $params = $self->_filter_params;
+  my $params = $self->_request_params;
 
   return $self->render(
     json => [
@@ -93,7 +93,7 @@ sub update {
   # aliases.
   $user->visible_bugs([grep {/^[0-9]+$/} @$ids]);
 
-  my $params = $self->_filter_params;
+  my $params = $self->_request_params;
   my $dbh    = Bugzilla->dbh;
 
   $dbh->bz_start_transaction();
@@ -121,24 +121,27 @@ sub _ids_from_request {
     return [$id];
   }
 
-  if ($self->req->method eq 'POST') {
-    my $params;
-    my $error;
-    try { $params = decode_json($self->req->body || '{}'); }
-    catch { $error = 'rest_malformed_json'; };
-    return (undef, $error) if $error;
-    my $ids = $params->{ids} // [];
-    return ref $ids ? $ids : [$ids];
-  }
-
-  my $ids = $self->every_param('ids');
-  return @$ids ? $ids : undef;
+  my $ids = $self->_request_params->{ids} // [];
+  return ref $ids ? $ids : [$ids];
 }
 
-sub _filter_params {
+sub _request_params {
   my ($self) = @_;
 
+  # $self->req->params already covers the query string plus, for POST, an
+  # application/x-www-form-urlencoded or multipart body. Layer a JSON body
+  # on top of that (silently ignored if absent or not valid JSON) so ids and
+  # include_fields/exclude_fields work from either the query string or a
+  # JSON POST body, matching the legacy REST layer's merging behavior.
   my $params = $self->req->params->to_hash;
+
+  if ($self->req->method eq 'POST' && length $self->req->body) {
+    my $body_params;
+    try { $body_params = decode_json($self->req->body); }
+    catch { $body_params = undef; };
+    $params = {%$params, %$body_params} if ref $body_params eq 'HASH';
+  }
+
   for my $field (qw(include_fields exclude_fields)) {
     $params->{$field} = [split(/[\s,]+/, $params->{$field})]
       if exists $params->{$field} && !ref $params->{$field};
