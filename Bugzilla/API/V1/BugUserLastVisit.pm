@@ -133,16 +133,19 @@ sub _request_params {
 
   # $self->req->params already covers the query string plus, for POST, an
   # application/x-www-form-urlencoded or multipart body. Layer a JSON body
-  # on top of that (silently ignored if absent or not valid JSON) so ids and
-  # include_fields/exclude_fields work from either the query string or a
-  # JSON POST body, matching the legacy REST layer's merging behavior.
+  # underneath that (silently ignored if absent or not valid JSON) so ids
+  # and include_fields/exclude_fields work from either the query string or
+  # a JSON POST body. Query-string values win on a key collision, matching
+  # the legacy REST layer (see _retrieve_json_params in
+  # Bugzilla::WebService::Server::REST) and the documented behavior in
+  # docs/en/rst/api/core/v1/general.rst.
   my $params = $self->req->params->to_hash;
 
   if ($self->req->method eq 'POST' && length $self->req->body) {
     my $body_params;
     try { $body_params = decode_json($self->req->body); }
     catch { $body_params = undef; };
-    $params = {%$params, %$body_params} if ref $body_params eq 'HASH';
+    $params = {%$body_params, %$params} if ref $body_params eq 'HASH';
   }
 
   for my $field (qw(include_fields exclude_fields)) {
