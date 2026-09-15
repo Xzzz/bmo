@@ -52,7 +52,7 @@ sub create {
   $user->id || return $self->user_error('login_required');
   $user->in_group('creategroups')
     || return $self->user_error('auth_failure',
-    {group => 'creategroups', action => 'add', object => 'group'});
+    {group => 'creategroups', action => 'add', object => 'groups'});
 
   my $params = $self->_request_params;
 
@@ -75,7 +75,7 @@ sub update {
   $user->id || return $self->user_error('login_required');
   $user->in_group('creategroups')
     || return $self->user_error('auth_failure',
-    {group => 'creategroups', action => 'edit', object => 'group'});
+    {group => 'creategroups', action => 'edit', object => 'groups'});
 
   my $params = $self->_request_params;
   if (defined(my $id_or_name = $self->param('id'))) {
