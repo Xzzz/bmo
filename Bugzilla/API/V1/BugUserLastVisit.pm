@@ -122,7 +122,8 @@ sub _ids_from_request {
     return [$id];
   }
 
-  my $ids = $self->_request_params->{ids} // [];
+  my $ids = $self->_request_params->{ids};
+  return undef unless defined $ids;
   return (undef, 'invalid_params', {type_error => 'ids must be an array'})
     if ref $ids && ref $ids ne 'ARRAY';
   return ref $ids eq 'ARRAY' ? $ids : [$ids];
