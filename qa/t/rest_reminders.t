@@ -75,6 +75,20 @@ $t->delete_ok($url . "rest/reminder/invalid" => {'X-Bugzilla-API-Key' => $api_ke
 $t->delete_ok($url . "rest/reminder/$id" => {'X-Bugzilla-API-Key' => $api_key})
   ->status_is(200)->json_is('/success' => 1);
 
+### Section 3b: Fields may also be passed entirely via the query string,
+### with no JSON body
+
+$t->post_ok($url
+    . "rest/reminder?bug_id=$bug_id&note=Query%20String%20Reminder"
+    . '&reminder_ts=2024-06-08' => {'X-Bugzilla-API-Key' => $api_key})
+  ->status_is(200)->json_is('/note' => 'Query String Reminder');
+
+my $qs_id = $t->tx->res->json->{id};
+
+$t->delete_ok(
+  $url . "rest/reminder/$qs_id" => {'X-Bugzilla-API-Key' => $api_key})
+  ->status_is(200)->json_is('/success' => 1);
+
 ### Section 4: Another user cannot delete someone else's reminder
 
 # Create a new reminder as userA (editbugs_user)

@@ -21,6 +21,8 @@ use Storable qw(dclone);
 use URI::Escape qw(uri_unescape);
 use Type::Params qw( compile );
 use Types::Standard -all;
+use Mojo::JSON qw(decode_json);
+use Try::Tiny;
 
 use base qw(Exporter);
 
@@ -38,6 +40,7 @@ our @EXPORT_OK = qw(
   params_to_objects
   fix_credentials
   set_rest_cors_headers
+  merge_request_params
 );
 
 sub set_rest_cors_headers {
@@ -297,6 +300,29 @@ sub params_to_objects {
   return \@objects;
 }
 
+sub merge_request_params {
+  my ($c) = @_;
+
+  # $c->req->params already covers the query string plus, for POST/PUT, an
+  # application/x-www-form-urlencoded or multipart body. Layer a JSON body
+  # underneath that (silently ignored if absent or not valid JSON), so
+  # params work from either the query string or a JSON request body.
+  # Query-string values win on a key collision, matching the legacy REST
+  # layer (see fix_credentials/_retrieve_json_params in
+  # Bugzilla::WebService::Server::REST) and the documented behavior in
+  # docs/en/rst/api/core/v1/general.rst.
+  my $params = $c->req->params->to_hash;
+
+  if (length $c->req->body) {
+    my $body_params;
+    try { $body_params = decode_json($c->req->body); }
+    catch { $body_params = undef; };
+    $params = {%$body_params, %$params} if ref $body_params eq 'HASH';
+  }
+
+  return $params;
+}
+
 sub fix_credentials {
   my ($params, $cgi) = @_;
 
@@ -398,6 +424,15 @@ parameters passed to a WebService method (the first parameter to this function).
 Helps make life simpler for WebService methods that internally create objects
 via both "ids" and "names" fields. Also de-duplicates objects that were loaded
 by both "ids" and "names". Returns an arrayref of objects.
+
+=head2 merge_request_params
+
+Takes a Mojolicious controller and returns a hashref merging its query
+string/form-body params (C<< $c->req->params->to_hash >>) with a decoded
+JSON request body, if any. Query-string/form-body values win on a key
+collision. For use by native Mojo REST controllers that need to accept
+parameters from either the query string or a JSON body on non-GET
+requests.
 
 =head2 fix_credentials
 
