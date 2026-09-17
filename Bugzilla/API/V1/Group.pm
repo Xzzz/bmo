@@ -179,12 +179,12 @@ sub get {
   }
 
   # Filter groups by blessability if user is not allowed to see all groups.
-  # NOTE: this mirrors a pre-existing quirk in the legacy WebService
-  # implementation: $user->can_bless() expects a group id, not a Group
-  # object, so this filter is a no-op that leaves $groups untouched in
-  # practice rather than actually filtering by blessability.
+  # can_bless() takes a group id, not a Group object -- the legacy
+  # WebService code passed the object itself here, which is always false,
+  # so it wasn't actually filtering anything. Passing the id instead makes
+  # the filter do what the surrounding comment always claimed it did.
   if (!$can_see_groups) {
-    $groups = [map { $user->can_bless($_) } @{$groups}];
+    $groups = [grep { $user->can_bless($_->id) } @{$groups}];
   }
 
   my @result = map { $self->_group_to_hash($params, $_) } @$groups;
