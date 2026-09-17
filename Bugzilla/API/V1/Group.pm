@@ -95,9 +95,11 @@ sub update {
     $group->check_can_be_edited();
   }
 
-  my %values = %$params;
-  delete $values{names};
-  delete $values{ids};
+  # Whitelist the documented update fields; set_all() throws unknown_method
+  # for any stray key (e.g. Bugzilla_api_token, include_fields).
+  my %values = map { $_ => $params->{$_} }
+    grep { exists $params->{$_} }
+    qw(name description user_regexp is_active icon_url);
 
   my $dbh = Bugzilla->dbh;
   $dbh->bz_start_transaction();
