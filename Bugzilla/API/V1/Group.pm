@@ -26,11 +26,11 @@ sub setup_routes {
   my $routes = $r->under(
     '/group' => sub { Bugzilla->usage_mode(USAGE_MODE_MOJO_REST); });
   $routes->get('/')->to('V1::Group#get');
-  $routes->get('/:id')->to('V1::Group#get');
+  $routes->get('/#id')->to('V1::Group#get');
   $routes->post('/')->to('V1::Group#create');
-  $routes->put('/:id')->to('V1::Group#update');
+  $routes->put('/#id')->to('V1::Group#update');
 
-  foreach my $path ('/', '/:id') {
+  foreach my $path ('/', '/#id') {
     $routes->options($path)->to('V1::Group#options');
   }
 }
