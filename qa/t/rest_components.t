@@ -66,6 +66,14 @@ $t->post_ok($url
   ->json_is('/message' =>
     'The Firefox product already has a component named TestComponent.');
 
+# Fields may also be passed entirely via the query string, with no JSON body.
+$t->post_ok($url
+    . 'rest/component/Firefox?name=QueryStringComponent'
+    . '&description=Created%20via%20query%20string'
+    . '&default_assignee=admin%40mozilla.test&team_name=Mozilla' =>
+    {'X-Bugzilla-API-Key' => $api_key})->status_is(200)
+  ->json_is('/name' => 'QueryStringComponent');
+
 ### Section 2: Make updates to the component
 
 my $update = {
@@ -88,12 +96,20 @@ $t->put_ok($url
   ->json_is('/description'      => 'Updated description')
   ->json_is('/default_assignee' => 'permanent_user@mozilla.test');
 
+# A query-string parameter is also accepted on PUT, and wins over a matching
+# parameter in the JSON body.
+$t->put_ok($url
+    . 'rest/component/Firefox/TestComponent?description=Query%20String%20Wins' =>
+    {'X-Bugzilla-API-Key' => $api_key} =>
+    json => {description => 'Should Not Be Used'})->status_is(200)
+  ->json_is('/description' => 'Query String Wins');
+
 # Retrieve the new component and verify
 $t->get_ok($url
     . 'rest/component/Firefox/TestComponent' =>
     {'X-Bugzilla-API-Key' => $api_key})->status_is(200)
   ->json_is('/triage_owner' => 'admin@mozilla.test')
-  ->json_is('/description'  => 'Updated description');
+  ->json_is('/description'  => 'Query String Wins');
 
 # Update an existing user and give edittriageowners permissions
 my $user_update = {groups => {add => ['edittriageowners']}};
