@@ -10,13 +10,10 @@ package Bugzilla::API::V1::BugUserLastVisit;
 use 5.10.1;
 use Mojo::Base qw( Mojolicious::Controller );
 
-use Mojo::JSON qw(decode_json);
-use Try::Tiny;
-
 use Bugzilla::Bug;
 use Bugzilla::Constants;
 use Bugzilla::Util             qw(datetime_from);
-use Bugzilla::WebService::Util qw(filter);
+use Bugzilla::WebService::Util qw(filter merge_request_params);
 
 sub setup_routes {
   my ($class, $r) = @_;
@@ -132,22 +129,7 @@ sub _ids_from_request {
 sub _request_params {
   my ($self) = @_;
 
-  # $self->req->params already covers the query string plus, for POST, an
-  # application/x-www-form-urlencoded or multipart body. Layer a JSON body
-  # underneath that (silently ignored if absent or not valid JSON) so ids
-  # and include_fields/exclude_fields work from either the query string or
-  # a JSON POST body. Query-string values win on a key collision, matching
-  # the legacy REST layer (see _retrieve_json_params in
-  # Bugzilla::WebService::Server::REST) and the documented behavior in
-  # docs/en/rst/api/core/v1/general.rst.
-  my $params = $self->req->params->to_hash;
-
-  if ($self->req->method eq 'POST' && length $self->req->body) {
-    my $body_params;
-    try { $body_params = decode_json($self->req->body); }
-    catch { $body_params = undef; };
-    $params = {%$body_params, %$params} if ref $body_params eq 'HASH';
-  }
+  my $params = merge_request_params($self);
 
   for my $field (qw(include_fields exclude_fields)) {
     $params->{$field} = [split(/[\s,]+/, $params->{$field})]
