@@ -10,14 +10,13 @@ package Bugzilla::API::V1::Group;
 use 5.10.1;
 use Mojo::Base qw( Mojolicious::Controller );
 
-use Mojo::JSON qw(decode_json true false);
-use Try::Tiny;
+use Mojo::JSON qw(true false);
 
 use Bugzilla::Constants;
 use Bugzilla::Error;
 use Bugzilla::Group;
 use Bugzilla::User;
-use Bugzilla::WebService::Util qw(params_to_objects translate validate);
+use Bugzilla::WebService::Util qw(merge_request_params params_to_objects translate validate);
 
 use constant MAPPED_RETURNS =>
   {userregexp => 'user_regexp', isactive => 'is_active'};
@@ -54,7 +53,7 @@ sub create {
     || return $self->user_error('auth_failure',
     {group => 'creategroups', action => 'add', object => 'groups'});
 
-  my $params = $self->_request_params;
+  my $params = merge_request_params($self);
 
   my $group = Bugzilla::Group->create({
     name        => $params->{name},
@@ -77,7 +76,7 @@ sub update {
     || return $self->user_error('auth_failure',
     {group => 'creategroups', action => 'edit', object => 'groups'});
 
-  my $params = $self->_request_params;
+  my $params = merge_request_params($self);
   if (defined(my $id_or_name = $self->param('id'))) {
     $params
       = $id_or_name =~ /^\d+$/
@@ -133,7 +132,7 @@ sub get {
   my $user = $self->bugzilla->login;
   $user->id || return $self->user_error('login_required');
 
-  my $params = $self->_request_params;
+  my $params = merge_request_params($self);
   if (defined(my $id_or_name = $self->param('id'))) {
     $params
       = $id_or_name =~ /^\d+$/
@@ -272,27 +271,6 @@ sub _get_group_membership {
       }
     } @$user_objects
   ];
-}
-
-sub _request_params {
-  my ($self) = @_;
-
-  # $self->req->params already covers the query string plus, for POST/PUT,
-  # an application/x-www-form-urlencoded or multipart body. Layer a JSON
-  # body underneath that (silently ignored if absent or not valid JSON) so
-  # params work from either the query string or a JSON request body.
-  # Query-string values win on a key collision, matching the legacy REST
-  # layer and the documented behavior in docs/en/rst/api/core/v1/general.rst.
-  my $params = $self->req->params->to_hash;
-
-  if (length $self->req->body) {
-    my $body_params;
-    try { $body_params = decode_json($self->req->body); }
-    catch { $body_params = undef; };
-    $params = {%$body_params, %$params} if ref $body_params eq 'HASH';
-  }
-
-  return $params;
 }
 
 1;
