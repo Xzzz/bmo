@@ -119,8 +119,10 @@ sub update {
     my %hash = (id => 0 + $group->id, changes => {});
     foreach my $field (keys %{$changes{$group->id}}) {
       my $change = $changes{$group->id}->{$field};
-      $hash{changes}{$field}
-        = {removed => "$change->[0]", added => "$change->[1]"};
+      $hash{changes}{$field} = {
+        removed => defined $change->[0] ? "$change->[0]" : undef,
+        added   => defined $change->[1] ? "$change->[1]" : undef,
+      };
     }
     push(@result, \%hash);
   }
