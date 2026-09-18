@@ -107,7 +107,15 @@ sub register {
 
       # For api requests, we check for the api key in the header
       if ($usage_mode == USAGE_MODE_REST || $usage_mode == USAGE_MODE_MOJO_REST) {
-        if (my $api_key_text = $headers->header('x-bugzilla-api-key')) {
+
+        # Deprecated fallback for the legacy ?api_key=<key> query parameter,
+        # same as the legacy WebService dispatcher (see
+        # Bugzilla::WebService::Util::fix_credentials). This is a
+        # deprecation-pending stopgap, not a first-class supported method.
+        my $api_key_text
+          = $headers->header('x-bugzilla-api-key') || $c->param('api_key');
+
+        if ($api_key_text) {
           if (my $api_key = Bugzilla::User::APIKey->new({name => $api_key_text})) {
             my $remote_ip = $c->tx->remote_address;
             if (
