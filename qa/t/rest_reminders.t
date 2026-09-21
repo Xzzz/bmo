@@ -89,6 +89,14 @@ $t->delete_ok(
   $url . "rest/reminder/$qs_id" => {'X-Bugzilla-API-Key' => $api_key})
   ->status_is(200)->json_is('/success' => 1);
 
+### Section 3c: A malformed JSON body is rejected
+
+$t->post_ok($url
+    . 'rest/reminder' => {'X-Bugzilla-API-Key' => $api_key} => '{"bug_id": ')
+  ->status_is(400)->json_is('/code' => 32000)->json_is('/message' =>
+  'The JSON data used for the request was malformed. Please update your request and try again.'
+  );
+
 ### Section 4: Another user cannot delete someone else's reminder
 
 # Create a new reminder as userA (editbugs_user)
