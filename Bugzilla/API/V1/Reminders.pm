@@ -63,7 +63,8 @@ sub add {
   return $self->render(json => {})
     if !$user->in_group(Bugzilla->params->{reminders_group});
 
-  my $params = merge_request_params($self);
+  my ($params, $error) = merge_request_params($self);
+  return $self->user_error($error) if $error;
 
   my $bug_id      = $params->{bug_id};
   my $note        = $params->{note};
