@@ -90,6 +90,9 @@ $t->delete_ok(
   ->status_is(200)->json_is('/success' => 1);
 
 ### Section 3c: A malformed JSON body is rejected
+###
+### Also guards i_am_webservice() recognizing USAGE_MODE_MOJO_REST: without
+### that, this message gets word-wrapped to 72 columns with embedded \n's.
 
 $t->post_ok($url
     . 'rest/reminder' => {'X-Bugzilla-API-Key' => $api_key} => '{"bug_id": ')
