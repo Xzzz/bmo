@@ -53,7 +53,8 @@ sub create {
     || return $self->user_error('auth_failure',
     {group => 'creategroups', action => 'add', object => 'groups'});
 
-  my $params = merge_request_params($self);
+  my ($params, $error) = merge_request_params($self);
+  return $self->user_error($error) if $error;
 
   my $group = Bugzilla::Group->create({
     name        => $params->{name},
@@ -76,7 +77,9 @@ sub update {
     || return $self->user_error('auth_failure',
     {group => 'creategroups', action => 'edit', object => 'groups'});
 
-  my $params = merge_request_params($self);
+  my ($params, $error) = merge_request_params($self);
+  return $self->user_error($error) if $error;
+
   if (defined(my $id_or_name = $self->param('id'))) {
     $params
       = $id_or_name =~ /^\d+$/
@@ -136,7 +139,9 @@ sub get {
   my $user = $self->bugzilla->login;
   $user->id || return $self->user_error('login_required');
 
-  my $params = merge_request_params($self);
+  my ($params, $error) = merge_request_params($self);
+  return $self->user_error($error) if $error;
+
   if (defined(my $id_or_name = $self->param('id'))) {
     $params
       = $id_or_name =~ /^\d+$/
