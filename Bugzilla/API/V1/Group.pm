@@ -98,11 +98,14 @@ sub update {
     $group->check_can_be_edited();
   }
 
-  # Whitelist the documented update fields; set_all() throws unknown_method
-  # for any stray key (e.g. Bugzilla_api_token, include_fields).
-  my %values = map { $_ => $params->{$_} }
-    grep { exists $params->{$_} }
-    qw(name description user_regexp is_active icon_url);
+  # Drop the request-level keys that are not group fields and pass everything
+  # else through, so set_all() still raises unknown_method on an unrecognized
+  # field rather than silently ignoring it.
+  my %values = %$params;
+  delete @values{
+    qw(ids names include_fields exclude_fields
+      Bugzilla_api_key Bugzilla_api_token Bugzilla_login Bugzilla_password)
+  };
 
   my $dbh = Bugzilla->dbh;
   $dbh->bz_start_transaction();
