@@ -44,6 +44,27 @@ $t->get_ok(
   $url . "rest/group/$group_id" => {'X-Bugzilla-API-Key' => $admin_api_key})
   ->status_is(200)->json_is('/groups/0/name', 'secret-group');
 
+# A repeated ids parameter must return every group asked for, not just the last
+my $second_group = {
+  name        => 'secret-group-two',
+  description => 'Also too secret for you!',
+  is_active   => true
+};
+$t->post_ok($url
+    . 'rest/group' => {'X-Bugzilla-API-Key' => $admin_api_key} => json =>
+    $second_group)->status_is(201)->json_has('/id');
+
+my $second_group_id = $t->tx->res->json->{id};
+
+$t->get_ok($url
+    . "rest/group?ids=$group_id&ids=$second_group_id" =>
+    {'X-Bugzilla-API-Key' => $admin_api_key})->status_is(200);
+
+my @returned_ids
+  = sort { $a <=> $b } map { $_->{id} } @{$t->tx->res->json->{groups}};
+is_deeply(\@returned_ids, [sort { $a <=> $b } ($group_id, $second_group_id)],
+  'a repeated ids parameter returns both groups');
+
 # Create a new user and add it to the new group
 my $new_user = {
   email     => 'group_test_user@mozilla.bugs',

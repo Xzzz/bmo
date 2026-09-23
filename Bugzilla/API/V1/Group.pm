@@ -77,7 +77,7 @@ sub update {
     || return $self->user_error('auth_failure',
     {group => 'creategroups', action => 'edit', object => 'groups'});
 
-  my ($params, $error) = merge_request_params($self);
+  my ($params, $error) = merge_request_params($self, ['ids', 'names']);
   return $self->user_error($error) if $error;
 
   if (defined(my $id_or_name = $self->param('id'))) {
@@ -142,7 +142,7 @@ sub get {
   my $user = $self->bugzilla->login;
   $user->id || return $self->user_error('login_required');
 
-  my ($params, $error) = merge_request_params($self);
+  my ($params, $error) = merge_request_params($self, ['ids', 'names']);
   return $self->user_error($error) if $error;
 
   if (defined(my $id_or_name = $self->param('id'))) {
