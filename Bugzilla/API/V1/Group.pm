@@ -30,16 +30,16 @@ sub setup_routes {
   $routes->post('/')->to('V1::Group#create');
   $routes->put('/#id')->to('V1::Group#update');
 
-  foreach my $path ('/', '/#id') {
-    $routes->options($path)->to('V1::Group#options');
-  }
+  $routes->options('/')->to('V1::Group#options', allow => 'GET, POST');
+  $routes->options('/#id')->to('V1::Group#options', allow => 'GET, PUT');
 }
 
 sub options {
   my ($self) = @_;
 
-  $self->res->headers->header('Allow'                        => 'GET, POST, PUT');
-  $self->res->headers->header('Access-Control-Allow-Methods' => 'GET, POST, PUT');
+  my $allow = $self->stash('allow');
+  $self->res->headers->header('Allow'                        => $allow);
+  $self->res->headers->header('Access-Control-Allow-Methods' => $allow);
 
   return $self->rendered(200);
 }
