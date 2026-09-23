@@ -301,29 +301,38 @@ sub params_to_objects {
 }
 
 sub merge_request_params {
-  my ($c) = @_;
+  my ($c, $list_params) = @_;
 
   # $c->req->params already covers the query string plus, for POST/PUT, an
   # application/x-www-form-urlencoded or multipart body. Layer a JSON body
   # underneath that, so params work from either the query string or a JSON
-  # request body. Query-string values win on a key collision, matching the
-  # legacy REST layer (see fix_credentials/_retrieve_json_params in
-  # Bugzilla::WebService::Server::REST) and the documented behavior in
+  # request body. Query-string/form-body values win on a key collision,
+  # matching the legacy REST layer (see fix_credentials/_retrieve_json_params
+  # in Bugzilla::WebService::Server::REST) and the documented behavior in
   # docs/en/rst/api/core/v1/general.rst.
   #
-  # ->to_hash would turn a repeated key (e.g. ?note=a&note=b) into an
-  # arrayref, which validators don't expect, so collapse to scalars instead.
-  my $params = {};
-  $params->{$_} = $c->req->param($_) for @{$c->req->params->names};
+  # A param's type must not depend on how many times it was sent: ->to_hash
+  # returns a scalar for one occurrence and an arrayref for two. Callers
+  # therefore declare which params are lists; those always come back as
+  # arrayrefs, everything else always as a scalar.
+  my %is_list = map { $_ => 1 } @{$list_params || []};
+  my $params  = {};
+  for my $name (@{$c->req->params->names}) {
+    $params->{$name}
+      = $is_list{$name} ? $c->req->every_param($name) : $c->req->param($name);
+  }
 
   # Only decode a body that wasn't already parsed as form params, otherwise a
   # form-urlencoded or multipart request would be rejected as malformed JSON.
   # The legacy REST layer gets this for free: CGI.pm only populates
   # POSTDATA/PUTDATA for non-form content types.
-  if (length $c->req->body && !@{$c->req->body_params->names}) {
+  # Read the body once: for a file-backed request asset each ->body call
+  # re-slurps it from disk.
+  my $body = $c->req->body;
+  if (length $body && !@{$c->req->body_params->names}) {
     my $body_params;
     my $error;
-    try { $body_params = decode_json($c->req->body); }
+    try { $body_params = decode_json($body); }
     catch { $error = 'rest_malformed_json'; };
     return (undef, $error) if $error;
     $params = {%$body_params, %$params} if ref $body_params eq 'HASH';
@@ -442,6 +451,12 @@ decoded JSON request body, if any. Query-string/form-body values win on a
 key collision. For use by native Mojo REST controllers that need to accept
 parameters from either the query string or a JSON body on non-GET
 requests.
+
+An optional second argument is an arrayref of parameter names that are
+lists, e.g. C<merge_request_params($c, ['ids'])>. Those are always returned
+as arrayrefs, however many times they appear in the request; every other
+parameter is always returned as a scalar. Declaring them is required because
+a parameter's type must not depend on the number of occurrences sent.
 
 If the request has a non-empty body that fails to decode as JSON, C<$params>
 is C<undef> and C<$error> is set to C<rest_malformed_json>; callers should
