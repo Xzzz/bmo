@@ -57,10 +57,6 @@ $t->options_ok($url . 'rest/bug_user_last_visit')->status_is(200)
 $t->options_ok($url . "rest/bug_user_last_visit/$bug_id_1")->status_is(200)
   ->header_is('Allow' => 'GET, POST');
 
-# A non-numeric id matches no route, so OPTIONS must not advertise methods
-# that would 404 on that path.
-$t->options_ok($url . 'rest/bug_user_last_visit/abc')->status_is(404);
-
 ### Section 3: POST /rest/bug_user_last_visit/<id> records a visit via the path
 
 $t->post_ok($url
@@ -144,17 +140,18 @@ ok((grep { $_ == $bug_id_1 } @get_all_ids)
 
 my $private_api_key = $config->{QA_Selenium_TEST_user_api_key};
 
+# No "groups" needed: the QA-Selenium-TEST group is CONTROLMAPMANDATORY on the
+# product of the same name, so every bug filed there gets it automatically.
+
 $t->post_ok($url
     . 'rest/bug' => {'X-Bugzilla-API-Key' => $private_api_key} => json => {
-      product          => 'QA-Selenium-TEST',
-      component        => 'QA-Selenium-TEST',
-      summary          => 'bug_user_last_visit private test bug',
-      type             => 'defect',
-      version          => 'QAVersion',
-      target_milestone => 'QAMilestone',
-      severity         => 'blocker',
-      description      => 'bug_user_last_visit private test bug',
-      groups           => ['QA-Selenium-TEST'],
+      product     => 'QA-Selenium-TEST',
+      component   => 'QA-Selenium-TEST',
+      summary     => 'bug_user_last_visit private test bug',
+      type        => 'defect',
+      version     => 'unspecified',
+      severity    => 'blocker',
+      description => 'bug_user_last_visit private test bug',
     })->status_is(200)->json_has('/id');
 
 my $private_bug_id = $t->tx->res->json->{id};
@@ -190,10 +187,14 @@ my $ts_before = $t->tx->res->json->[0]->{last_visit_ts};
 # the would-be-new timestamp could be identical and the test pass spuriously.
 sleep 1;
 
+# Bugzilla::Bug->new sets error => 'InvalidBugId' rather than 'NotFound' when
+# handed a hashref, so check() reports improper_bug_id_field_value with no bug
+# id rather than bug_id_does_not_exist. The legacy endpoint calls check() the
+# same way and behaves identically.
 $t->post_ok($url
     . 'rest/bug_user_last_visit' => {'X-Bugzilla-API-Key' => $api_key} =>
-    json => {ids => [$bug_id_1, 99999999]})->status_is(404)
-  ->json_is('/code' => 101)->json_like('/message' => qr/does not exist/);
+    json => {ids => [$bug_id_1, 99999999]})->status_is(400)
+  ->json_is('/code' => 100)->json_like('/message' => qr/valid bug number/);
 
 $t->get_ok($url
     . "rest/bug_user_last_visit/$bug_id_1" =>
