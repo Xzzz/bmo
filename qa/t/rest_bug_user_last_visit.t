@@ -57,6 +57,10 @@ $t->options_ok($url . 'rest/bug_user_last_visit')->status_is(200)
 $t->options_ok($url . "rest/bug_user_last_visit/$bug_id_1")->status_is(200)
   ->header_is('Allow' => 'GET, POST');
 
+# A non-numeric id matches no route, so OPTIONS must not advertise methods
+# that would 404 on that path.
+$t->options_ok($url . 'rest/bug_user_last_visit/abc')->status_is(404);
+
 ### Section 3: POST /rest/bug_user_last_visit/<id> records a visit via the path
 
 $t->post_ok($url
