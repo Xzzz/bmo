@@ -64,7 +64,8 @@ sub get {
     @last_visits = grep { $id_set{$_->bug_id} } @last_visits;
   }
 
-  my $params = $self->_request_params;
+  my ($params, $params_error) = $self->_request_params;
+  return $self->user_error($params_error) if $params_error;
 
   return $self->render(
     json => [
@@ -91,8 +92,10 @@ sub update {
   # aliases.
   $user->visible_bugs([grep {/^[0-9]+$/} @$ids]);
 
-  my $params = $self->_request_params;
-  my $dbh    = Bugzilla->dbh;
+  my ($params, $params_error) = $self->_request_params;
+  return $self->user_error($params_error) if $params_error;
+
+  my $dbh = Bugzilla->dbh;
 
   $dbh->bz_start_transaction();
   my @results;
@@ -125,7 +128,10 @@ sub _ids_from_request {
     return [$path_id];
   }
 
-  my $ids = $self->_request_params->{ids};
+  my ($params, $error) = $self->_request_params;
+  return (undef, $error) if $error;
+
+  my $ids = $params->{ids};
   if (!defined $ids) {
     return defined $path_id ? [$path_id] : undef;
   }
@@ -138,14 +144,15 @@ sub _ids_from_request {
 sub _request_params {
   my ($self) = @_;
 
-  my $params = merge_request_params($self);
+  my ($params, $error) = merge_request_params($self);
+  return (undef, $error) if $error;
 
   for my $field (qw(include_fields exclude_fields)) {
     $params->{$field} = [split(/[\s,]+/, $params->{$field})]
       if exists $params->{$field} && !ref $params->{$field};
   }
 
-  return $params;
+  return ($params, undef);
 }
 
 sub _bug_user_last_visit_to_hash {
