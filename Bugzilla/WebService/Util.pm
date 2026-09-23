@@ -305,22 +305,31 @@ sub merge_request_params {
 
   # $c->req->params already covers the query string plus, for POST/PUT, an
   # application/x-www-form-urlencoded or multipart body. Layer a JSON body
-  # underneath that (silently ignored if absent or not valid JSON), so
-  # params work from either the query string or a JSON request body.
-  # Query-string values win on a key collision, matching the legacy REST
-  # layer (see fix_credentials/_retrieve_json_params in
+  # underneath that, so params work from either the query string or a JSON
+  # request body. Query-string values win on a key collision, matching the
+  # legacy REST layer (see fix_credentials/_retrieve_json_params in
   # Bugzilla::WebService::Server::REST) and the documented behavior in
   # docs/en/rst/api/core/v1/general.rst.
-  my $params = $c->req->params->to_hash;
+  #
+  # ->to_hash would turn a repeated key (e.g. ?note=a&note=b) into an
+  # arrayref, which validators don't expect, so collapse to scalars instead.
+  my $params = {};
+  $params->{$_} = $c->req->param($_) for @{$c->req->params->names};
 
-  if (length $c->req->body) {
+  # Only decode a body that wasn't already parsed as form params, otherwise a
+  # form-urlencoded or multipart request would be rejected as malformed JSON.
+  # The legacy REST layer gets this for free: CGI.pm only populates
+  # POSTDATA/PUTDATA for non-form content types.
+  if (length $c->req->body && !@{$c->req->body_params->names}) {
     my $body_params;
+    my $error;
     try { $body_params = decode_json($c->req->body); }
-    catch { $body_params = undef; };
+    catch { $error = 'rest_malformed_json'; };
+    return (undef, $error) if $error;
     $params = {%$body_params, %$params} if ref $body_params eq 'HASH';
   }
 
-  return $params;
+  return ($params, undef);
 }
 
 sub fix_credentials {
@@ -427,12 +436,16 @@ by both "ids" and "names". Returns an arrayref of objects.
 
 =head2 merge_request_params
 
-Takes a Mojolicious controller and returns a hashref merging its query
-string/form-body params (C<< $c->req->params->to_hash >>) with a decoded
-JSON request body, if any. Query-string/form-body values win on a key
-collision. For use by native Mojo REST controllers that need to accept
+Takes a Mojolicious controller and returns a two-element list
+C<($params, $error)>, merging its query string/form-body params with a
+decoded JSON request body, if any. Query-string/form-body values win on a
+key collision. For use by native Mojo REST controllers that need to accept
 parameters from either the query string or a JSON body on non-GET
 requests.
+
+If the request has a non-empty body that fails to decode as JSON, C<$params>
+is C<undef> and C<$error> is set to C<rest_malformed_json>; callers should
+pass it to C<user_error>. Otherwise C<$error> is C<undef>.
 
 =head2 fix_credentials
 
