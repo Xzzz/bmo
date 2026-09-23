@@ -11,7 +11,8 @@ use 5.10.1;
 use lib qw(lib ../../lib ../../local/lib/perl5);
 
 use Bugzilla;
-use QA::Util qw(get_config);
+use QA::Util  qw(get_config);
+use QA::Tests qw(create_bug_fields PRIVATE_BUG_USER);
 
 use Mojo::JSON qw(encode_json);
 use Test::Mojo;
@@ -138,23 +139,25 @@ ok((grep { $_ == $bug_id_1 } @get_all_ids)
 ### Section 10: a bug in a group the user is not a member of is not
 ### accessible, and does not leak through the GET filter
 
-my $private_api_key = $config->{QA_Selenium_TEST_user_api_key};
+# File it as, and restrict it to, a group the editbugs user is not in. Created
+# by the private user so that the editbugs user is not its reporter either.
+# Same setup as qa/t/rest_relationship_trees.t.
+my $private_api_key = $config->{PRIVATE_BUG_USER . '_user_api_key'};
 
-# No "groups" needed: the QA-Selenium-TEST group is CONTROLMAPMANDATORY on the
-# product of the same name, so every bug filed there gets it automatically.
+my $private_bug_data = create_bug_fields($config);
+delete $private_bug_data->{cc};
+$private_bug_data->{summary}     = 'bug_user_last_visit private test bug';
+$private_bug_data->{description} = 'bug_user_last_visit private test bug';
 
 $t->post_ok($url
-    . 'rest/bug' => {'X-Bugzilla-API-Key' => $private_api_key} => json => {
-      product     => 'QA-Selenium-TEST',
-      component   => 'QA-Selenium-TEST',
-      summary     => 'bug_user_last_visit private test bug',
-      type        => 'defect',
-      version     => 'unspecified',
-      severity    => 'blocker',
-      description => 'bug_user_last_visit private test bug',
-    })->status_is(200)->json_has('/id');
+    . 'rest/bug' => {'X-Bugzilla-API-Key' => $private_api_key} => json =>
+    $private_bug_data)->status_is(200)->json_has('/id');
 
 my $private_bug_id = $t->tx->res->json->{id};
+
+$t->put_ok($url
+    . "rest/bug/$private_bug_id" => {'X-Bugzilla-API-Key' => $private_api_key}
+    => json => {groups => {add => ['QA-Selenium-TEST']}})->status_is(200);
 
 $t->post_ok($url
     . "rest/bug_user_last_visit/$private_bug_id" =>
