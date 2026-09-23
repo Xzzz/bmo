@@ -24,9 +24,9 @@ sub setup_routes {
   $routes->post('/')->to('V1::BugUserLastVisit#update');
   $routes->post('/:id' => [id => qr/\d+/])->to('V1::BugUserLastVisit#update');
 
-  foreach my $path ('/', '/:id') {
-    $routes->options($path)->to('V1::BugUserLastVisit#options');
-  }
+  $routes->options('/')->to('V1::BugUserLastVisit#options');
+  $routes->options('/:id' => [id => qr/\d+/])
+    ->to('V1::BugUserLastVisit#options');
 }
 
 sub options {
@@ -44,7 +44,10 @@ sub get {
   my $user = $self->bugzilla->login;
   $user->id || return $self->user_error('login_required');
 
-  my ($ids, $error, $vars) = $self->_ids_from_request;
+  my ($params, $params_error) = $self->_request_params;
+  return $self->user_error($params_error) if $params_error;
+
+  my ($ids, $error, $vars) = $self->_ids_from_request($params);
   return $self->user_error($error, $vars) if $error;
 
   if ($ids) {
@@ -64,9 +67,6 @@ sub get {
     @last_visits = grep { $id_set{$_->bug_id} } @last_visits;
   }
 
-  my ($params, $params_error) = $self->_request_params;
-  return $self->user_error($params_error) if $params_error;
-
   return $self->render(
     json => [
       map {
@@ -82,7 +82,10 @@ sub update {
   my $user = $self->bugzilla->login;
   $user->id || return $self->user_error('login_required');
 
-  my ($ids, $error, $vars) = $self->_ids_from_request;
+  my ($params, $params_error) = $self->_request_params;
+  return $self->user_error($params_error) if $params_error;
+
+  my ($ids, $error, $vars) = $self->_ids_from_request($params);
   return $self->user_error($error, $vars) if $error;
   return $self->code_error('param_required', {param => 'ids'})
     unless $ids && @$ids;
@@ -91,9 +94,6 @@ sub update {
   # DB.  visible_bugs() is only able to handle bug IDs, so we have to skip
   # aliases.
   $user->visible_bugs([grep {/^[0-9]+$/} @$ids]);
-
-  my ($params, $params_error) = $self->_request_params;
-  return $self->user_error($params_error) if $params_error;
 
   my $dbh = Bugzilla->dbh;
 
@@ -116,7 +116,7 @@ sub update {
 }
 
 sub _ids_from_request {
-  my ($self) = @_;
+  my ($self, $params) = @_;
 
   my $path_id = $self->stash('id');
 
@@ -127,9 +127,6 @@ sub _ids_from_request {
   if (defined $path_id && $self->req->method ne 'POST') {
     return [$path_id];
   }
-
-  my ($params, $error) = $self->_request_params;
-  return (undef, $error) if $error;
 
   my $ids = $params->{ids};
   if (!defined $ids) {

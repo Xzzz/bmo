@@ -326,10 +326,13 @@ sub merge_request_params {
   # form-urlencoded or multipart request would be rejected as malformed JSON.
   # The legacy REST layer gets this for free: CGI.pm only populates
   # POSTDATA/PUTDATA for non-form content types.
-  if (length $c->req->body && !@{$c->req->body_params->names}) {
+  # Read the body once: for a file-backed request asset each ->body call
+  # re-slurps it from disk.
+  my $body = $c->req->body;
+  if (length $body && !@{$c->req->body_params->names}) {
     my $body_params;
     my $error;
-    try { $body_params = decode_json($c->req->body); }
+    try { $body_params = decode_json($body); }
     catch { $error = 'rest_malformed_json'; };
     return (undef, $error) if $error;
     $params = {%$body_params, %$params} if ref $body_params eq 'HASH';
