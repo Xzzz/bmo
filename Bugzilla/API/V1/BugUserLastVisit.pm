@@ -144,7 +144,7 @@ sub _ids_from_request {
 sub _request_params {
   my ($self) = @_;
 
-  my ($params, $error) = merge_request_params($self);
+  my ($params, $error) = merge_request_params($self, ['ids']);
   return (undef, $error) if $error;
 
   for my $field (qw(include_fields exclude_fields)) {
