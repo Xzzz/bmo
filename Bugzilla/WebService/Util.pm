@@ -316,7 +316,11 @@ sub merge_request_params {
   my $params = {};
   $params->{$_} = $c->req->param($_) for @{$c->req->params->names};
 
-  if (length $c->req->body) {
+  # Only decode a body that wasn't already parsed as form params, otherwise a
+  # form-urlencoded or multipart request would be rejected as malformed JSON.
+  # The legacy REST layer gets this for free: CGI.pm only populates
+  # POSTDATA/PUTDATA for non-form content types.
+  if (length $c->req->body && !@{$c->req->body_params->names}) {
     my $body_params;
     my $error;
     try { $body_params = decode_json($c->req->body); }

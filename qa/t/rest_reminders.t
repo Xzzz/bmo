@@ -89,6 +89,19 @@ $t->delete_ok(
   $url . "rest/reminder/$qs_id" => {'X-Bugzilla-API-Key' => $api_key})
   ->status_is(200)->json_is('/success' => 1);
 
+### Section 3b-bis: A form-urlencoded body is accepted, not treated as JSON
+
+$t->post_ok($url
+    . 'rest/reminder' => {'X-Bugzilla-API-Key' => $api_key} => form =>
+    {bug_id => $bug_id, note => 'Form Reminder', reminder_ts => '2024-06-08'})
+  ->status_is(200)->json_is('/note' => 'Form Reminder');
+
+my $form_id = $t->tx->res->json->{id};
+
+$t->delete_ok(
+  $url . "rest/reminder/$form_id" => {'X-Bugzilla-API-Key' => $api_key})
+  ->status_is(200)->json_is('/success' => 1);
+
 ### Section 3c: A malformed JSON body is rejected
 ###
 ### Also guards i_am_webservice() recognizing USAGE_MODE_MOJO_REST: without
