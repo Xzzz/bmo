@@ -237,10 +237,13 @@ sub _get_group_membership {
 
   if (!$editusers && Bugzilla->params->{usevisibilitygroups}) {
 
-    # Show only users in visible groups.
+    # Show only users in visible groups. An empty arrayref is still truthy, so
+    # normalise it to undef: otherwise the group_not_visible check below passes
+    # and the query is left as a bare SELECT with an ' AND ...' appended to it.
     $visible_groups = $user->visible_groups_inherited;
+    $visible_groups = undef unless @$visible_groups;
 
-    if (scalar @$visible_groups) {
+    if ($visible_groups) {
       $query .= qq{, user_group_map AS ugm
                          WHERE ugm.user_id = profiles.userid
                            AND ugm.isbless = 0
