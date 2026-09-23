@@ -139,4 +139,85 @@ ok((grep { $_ == $bug_id_1 } @get_all_ids)
     && (grep { $_ == $bug_id_2 } @get_all_ids),
   'GET with no ids returns every visited bug');
 
+### Section 10: a bug in a group the user is not a member of is not
+### accessible, and does not leak through the GET filter
+
+my $private_api_key = $config->{QA_Selenium_TEST_user_api_key};
+
+$t->post_ok($url
+    . 'rest/bug' => {'X-Bugzilla-API-Key' => $private_api_key} => json => {
+      product          => 'QA-Selenium-TEST',
+      component        => 'QA-Selenium-TEST',
+      summary          => 'bug_user_last_visit private test bug',
+      type             => 'defect',
+      version          => 'QAVersion',
+      target_milestone => 'QAMilestone',
+      severity         => 'blocker',
+      description      => 'bug_user_last_visit private test bug',
+      groups           => ['QA-Selenium-TEST'],
+    })->status_is(200)->json_has('/id');
+
+my $private_bug_id = $t->tx->res->json->{id};
+
+$t->post_ok($url
+    . "rest/bug_user_last_visit/$private_bug_id" =>
+    {'X-Bugzilla-API-Key' => $api_key})->status_is(401)
+  ->json_is('/code' => 102)
+  ->json_like('/message' => qr/not authorized to access/);
+
+$t->get_ok($url
+    . "rest/bug_user_last_visit?ids=$private_bug_id" =>
+    {'X-Bugzilla-API-Key' => $api_key})->status_is(200);
+is_deeply($t->tx->res->json, [],
+  'a bug the user cannot see is not returned by GET');
+
+### Section 11: anonymous POST requires login (anonymous GET is section 1)
+
+$t->post_ok($url . 'rest/bug_user_last_visit' => json => {ids => [$bug_id_1]})
+  ->status_is(401)
+  ->json_is(
+  '/message' => 'You must log in before using this part of Bugzilla.');
+
+### Section 12: a nonexistent bug id fails the whole request, and the visit
+### recorded earlier in the same loop is rolled back
+
+$t->post_ok($url
+    . "rest/bug_user_last_visit/$bug_id_1" =>
+    {'X-Bugzilla-API-Key' => $api_key})->status_is(200);
+my $ts_before = $t->tx->res->json->[0]->{last_visit_ts};
+
+# last_visit_ts has second granularity, so without this the rolled-back and
+# the would-be-new timestamp could be identical and the test pass spuriously.
+sleep 1;
+
+$t->post_ok($url
+    . 'rest/bug_user_last_visit' => {'X-Bugzilla-API-Key' => $api_key} =>
+    json => {ids => [$bug_id_1, 99999999]})->status_is(404)
+  ->json_is('/code' => 101)->json_like('/message' => qr/does not exist/);
+
+$t->get_ok($url
+    . "rest/bug_user_last_visit/$bug_id_1" =>
+    {'X-Bugzilla-API-Key' => $api_key})->status_is(200);
+is($t->tx->res->json->[0]->{last_visit_ts},
+  $ts_before, 'the visit recorded before the bad id was rolled back');
+
+### Section 13: POST with no ids in the path, query string or body
+
+$t->post_ok($url
+    . 'rest/bug_user_last_visit' => {'X-Bugzilla-API-Key' => $api_key} =>
+    json => {})->status_is(400)->json_is('/code' => 50)
+  ->json_like('/message' => qr/argument was not set/);
+
+### Section 14: include_fields / exclude_fields
+
+$t->get_ok($url
+    . "rest/bug_user_last_visit/$bug_id_1?include_fields=id" =>
+    {'X-Bugzilla-API-Key' => $api_key})->status_is(200)->json_has('/0/id')
+  ->json_hasnt('/0/last_visit_ts');
+
+$t->get_ok($url
+    . "rest/bug_user_last_visit/$bug_id_1?exclude_fields=last_visit_ts" =>
+    {'X-Bugzilla-API-Key' => $api_key})->status_is(200)->json_has('/0/id')
+  ->json_hasnt('/0/last_visit_ts');
+
 done_testing();
