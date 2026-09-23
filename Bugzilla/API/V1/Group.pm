@@ -190,11 +190,12 @@ sub get {
     }
   }
 
-  # Filter groups by blessability if user is not allowed to see all groups.
-  # can_bless() takes a group id, not a Group object -- the legacy
-  # WebService code passed the object itself here, which is always false,
-  # so it wasn't actually filtering anything. Passing the id instead makes
-  # the filter do what the surrounding comment always claimed it did.
+  # Filter groups by blessability if the user is not allowed to see all
+  # groups. can_bless() takes a group id, not a Group object. The legacy
+  # WebService code mapped (not grepped) can_bless($group_object) over the
+  # list; that numifies the ref and always returns 0, so every element became
+  # 0 and _group_to_hash then called ->id on it, i.e. any blesser without
+  # can_see_groups got a 500. Passing the id filters the list instead.
   if (!$can_see_groups) {
     $groups = [grep { $user->can_bless($_->id) } @{$groups}];
   }
