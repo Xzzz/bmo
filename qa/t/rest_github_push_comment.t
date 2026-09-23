@@ -399,4 +399,58 @@ $t->post_ok(
     } => json => $payload
 )->status_is(200)->json_has("/bugs/$bug_id_3/id");
 
+# An automation update must not clear restrict_comments on the bug it touches.
+
+$new_bug = {
+  product     => 'Firefox',
+  component   => 'General',
+  summary     => 'Test GitHub Push Commenting (restrict_comments)',
+  type        => 'defect',
+  version     => 'unspecified',
+  severity    => 'blocker',
+  description => 'This is a new test bug',
+};
+
+$t->post_ok(
+  $url . 'rest/bug' => {'X-Bugzilla-API-Key' => $api_key} => json => $new_bug)
+  ->status_is(200)->json_has('/id');
+
+my $bug_id_4 = $t->tx->res->json->{id};
+
+$t->put_ok($url
+    . "rest/bug/$bug_id_4" => {'X-Bugzilla-API-Key' => $api_key} => json =>
+    {restrict_comments => 1})->status_is(200);
+
+$payload = {
+  ref        => 'refs/heads/master',
+  repository => {
+    full_name      => 'mozilla-mobile/firefox-android',
+    default_branch => 'master',
+  },
+  commits => [{
+    author => {username => 'foobar', name => 'Foo Bar'},
+    url => 'https://github.com/mozilla-bteam/bmo/commit/abcdefghijklmnopqrstuvwxyz',
+    message => "Bug $bug_id_4 - Test Github Push Comment (restrict_comments)",
+  }]
+};
+
+$t->post_ok(
+  $url
+    . 'rest/github/push_comment' => {
+    'X-Hub-Signature-256' => generate_payload_signature($secret, $payload),
+    'X-GitHub-Event'      => 'push'
+    } => json => $payload
+)->status_is(200)->json_has("/bugs/$bug_id_4/id");
+
+$comment_id = $t->tx->res->json->{bugs}->{$bug_id_4}->{id};
+
+# restrict_comments is not exposed by the REST bug API, so assert its effect:
+# a user outside restrict_comments_group still cannot react to the comment.
+$t->put_ok($url
+    . "rest/bug/comment/$comment_id/reactions" =>
+    {'X-Bugzilla-API-Key' => $config->{unprivileged_user_api_key}} => json =>
+    {add => ['-1']})->status_is(400)
+  ->json_is('/message' =>
+    'You are not allowed to react to comments on this bug.');
+
 done_testing();
