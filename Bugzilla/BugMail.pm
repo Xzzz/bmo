@@ -143,8 +143,16 @@ sub Send {
     push @referenced_bugs, _parse_see_also(map { $_->name } @{$bug->see_also});
   }
 
+  # Flag events are gathered here so a flag-only change (e.g. flags cleared
+  # by a flag type edit) isn't dropped by the check below.
+  my @flag_events
+    = $params->{dep_only}
+    ? ()
+    : _get_flag_mail_events($bug, $start, $end, \%user_cache);
+
   # If no changes have been made, there is no need to process further.
-  return {'sent' => []} unless scalar(@diffs) || scalar(@$comments);
+  return {'sent' => []}
+    unless scalar(@diffs) || scalar(@$comments) || scalar(@flag_events);
 
   ###########################################################################
   # Start of email filtering code
@@ -205,11 +213,6 @@ sub Send {
   # that's now been granted/denied, becomes a recipient even without any
   # other role on the bug. Flag-type cc_list addresses (admin-configured,
   # bypasses per-user opt-in) are added the same way notify() used to.
-  my @flag_events
-    = $params->{dep_only}
-    ? ()
-    : _get_flag_mail_events($bug, $start, $end, \%user_cache);
-
   foreach my $event (@flag_events) {
     # notify() used to skip addressees who couldn't see a private
     # attachment; _flag_event_visible_to() matches that so a non-insider
