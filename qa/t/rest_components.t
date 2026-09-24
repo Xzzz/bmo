@@ -129,6 +129,14 @@ $t->put_ok($url
     form => {description => 'Form Body Loses'})->status_is(200)
   ->json_is('/description' => 'Query Beats Form');
 
+# A malformed JSON body is rejected instead of being treated as an empty,
+# successful update.
+$t->put_ok($url
+    . 'rest/component/Firefox/TestComponent' =>
+    {'X-Bugzilla-API-Key' => $api_key} => '{"description": ')
+  ->status_is(400)->json_is('/code' => 32000)
+  ->json_like('/message' => qr/JSON data used for the request was malformed/);
+
 # Update an existing user and give edittriageowners permissions
 my $user_update = {groups => {add => ['edittriageowners']}};
 $t->put_ok($url
