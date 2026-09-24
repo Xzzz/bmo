@@ -41,6 +41,15 @@ $t->post_ok($url . 'rest/component/Firefox' => json => $new_component)
   ->json_is(
   '/message' => 'You must log in before using this part of Bugzilla.');
 
+# Authenticated but unprivileged. This message is 110 characters long, so an
+# exact match also pins that native REST errors are not wrapped at 72 columns.
+$t->post_ok($url
+    . 'rest/component/Firefox' =>
+    {'X-Bugzilla-API-Key' => $config->{unprivileged_user_api_key}} => json =>
+    $new_component)->status_is(401)->json_is('/message' =>
+  "Sorry, you aren't a member of the 'editcomponents' group, and so you are not authorized to add new components."
+  );
+
 # Now try as authenticated user using API key. But a required field is missing (default_assignee).
 $t->post_ok($url
     . 'rest/component/Firefox' => {'X-Bugzilla-API-Key' => $api_key} => json =>

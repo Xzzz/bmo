@@ -47,7 +47,8 @@ sub create {
     || return $self->user_error('auth_failure',
     {group => 'editcomponents', action => 'add', object => 'components'});
 
-  my $params = merge_request_params($self);
+  my ($params, $error) = merge_request_params($self);
+  return $self->user_error($error) if $error;
 
   my $product = Bugzilla::Product->check({name => $self->param('product')});
 
@@ -94,7 +95,8 @@ sub update {
   my $component = Bugzilla::Component->check(
     {name => $self->param('component'), product => $product});
 
-  my $params = merge_request_params($self);
+  my ($params, $error) = merge_request_params($self);
+  return $self->user_error($error) if $error;
 
   # Whitelist the documented update fields; set_all() throws unknown_method
   # for any stray key (e.g. Bugzilla_api_token, include_fields).
