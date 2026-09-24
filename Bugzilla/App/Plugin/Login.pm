@@ -113,10 +113,13 @@ sub register {
         # legacy WebService dispatcher (header, then Bugzilla_api_key, then
         # api_key; see Bugzilla::WebService::Util::fix_credentials). This is
         # a deprecation-pending stopgap, not a first-class supported method.
+        # Only the query string is read, not urlencoded/multipart body params,
+        # to keep the reopened deprecated surface minimal.
+        my $query_params = $c->req->query_params;
         my $api_key_text
           = $headers->header('x-bugzilla-api-key')
-          || $c->param('Bugzilla_api_key')
-          || $c->param('api_key');
+          || $query_params->param('Bugzilla_api_key')
+          || $query_params->param('api_key');
 
         if ($api_key_text) {
           if (my $api_key = Bugzilla::User::APIKey->new({name => $api_key_text})) {
