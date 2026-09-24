@@ -120,6 +120,15 @@ $t->get_ok($url
   ->json_is('/triage_owner' => 'admin@mozilla.test')
   ->json_is('/description'  => 'Query String Wins');
 
+# A form-urlencoded body and the query string may both carry the same field;
+# the query string wins and the value stays a plain string (it used to be
+# merged into an arrayref and stored as "ARRAY(0x...)").
+$t->put_ok($url
+    . 'rest/component/Firefox/TestComponent?description=Query%20Beats%20Form' =>
+    {'X-Bugzilla-API-Key' => $api_key} =>
+    form => {description => 'Form Body Loses'})->status_is(200)
+  ->json_is('/description' => 'Query Beats Form');
+
 # Update an existing user and give edittriageowners permissions
 my $user_update = {groups => {add => ['edittriageowners']}};
 $t->put_ok($url
