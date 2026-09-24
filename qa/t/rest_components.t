@@ -14,6 +14,7 @@ use Bugzilla;
 use QA::Util qw(get_config);
 
 use MIME::Base64 qw(encode_base64 decode_base64);
+use Mojo::JSON qw(false true);
 use Test::Mojo;
 use Test::More;
 
@@ -136,6 +137,21 @@ $t->put_ok($url
     {'X-Bugzilla-API-Key' => $api_key} => '{"description": ')
   ->status_is(400)->json_is('/code' => 32000)
   ->json_like('/message' => qr/JSON data used for the request was malformed/);
+
+# is_active from the query string is the string "true"/"false", which must be
+# coerced rather than treated as a truthy string.
+$t->put_ok($url
+    . 'rest/component/Firefox/TestComponent?is_active=false' =>
+    {'X-Bugzilla-API-Key' => $api_key})->status_is(200)
+  ->json_is('/is_active' => false);
+$t->put_ok($url
+    . 'rest/component/Firefox/TestComponent?is_active=true' =>
+    {'X-Bugzilla-API-Key' => $api_key})->status_is(200)
+  ->json_is('/is_active' => true);
+$t->put_ok($url
+    . 'rest/component/Firefox/TestComponent?is_active=maybe' =>
+    {'X-Bugzilla-API-Key' => $api_key})->status_is(400)
+  ->json_like('/message' => qr/is_active must be true or false/);
 
 # Update an existing user and give edittriageowners permissions
 my $user_update = {groups => {add => ['edittriageowners']}};

@@ -105,6 +105,17 @@ sub update {
     qw(name description default_assignee default_qa_contact default_bug_type
     is_active triage_owner team_name bug_description_template);
 
+  # A JSON body sends is_active as a real boolean, but the query string and a
+  # form body send the literal string "true" or "false", and check_boolean
+  # treats any non-empty string as true.
+  if (exists $values{is_active} && !ref $values{is_active}) {
+    my $is_active = lc($values{is_active} // '');
+    return $self->user_error('invalid_params',
+      {type_error => 'is_active must be true or false'})
+      if $is_active !~ /^(?:true|false|1|0)$/;
+    $values{is_active} = ($is_active eq 'true' || $is_active eq '1') ? 1 : 0;
+  }
+
   # If the user is only able to edit triage owner and nothing else,
   # then we only allow that field to be passed to set_all()
   if (!$user->in_group('editcomponents')) {
