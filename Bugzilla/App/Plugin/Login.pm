@@ -108,12 +108,15 @@ sub register {
       # For api requests, we check for the api key in the header
       if ($usage_mode == USAGE_MODE_REST || $usage_mode == USAGE_MODE_MOJO_REST) {
 
-        # Deprecated fallback for the legacy ?api_key=<key> query parameter,
-        # same as the legacy WebService dispatcher (see
-        # Bugzilla::WebService::Util::fix_credentials). This is a
-        # deprecation-pending stopgap, not a first-class supported method.
+        # Deprecated fallback for the legacy ?Bugzilla_api_key=<key> and
+        # ?api_key=<key> query parameters, with the same precedence as the
+        # legacy WebService dispatcher (header, then Bugzilla_api_key, then
+        # api_key; see Bugzilla::WebService::Util::fix_credentials). This is
+        # a deprecation-pending stopgap, not a first-class supported method.
         my $api_key_text
-          = $headers->header('x-bugzilla-api-key') || $c->param('api_key');
+          = $headers->header('x-bugzilla-api-key')
+          || $c->param('Bugzilla_api_key')
+          || $c->param('api_key');
 
         if ($api_key_text) {
           if (my $api_key = Bugzilla::User::APIKey->new({name => $api_key_text})) {

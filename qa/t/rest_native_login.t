@@ -57,6 +57,12 @@ $t->get_ok($url . $endpoint . '&api_key=' . $api_key)
   ->status_is(200)->json_has('/result');
 
 #
+# 2b. The long form ?Bugzilla_api_key= is accepted too (bug 2073282).
+#
+$t->get_ok($url . $endpoint . '&Bugzilla_api_key=' . $api_key)
+  ->status_is(200)->json_has('/result');
+
+#
 # 3. Authentication via the login cookie + Bugzilla_api_token parameter works.
 #    This is the mechanism the web UI (Bugzilla.API) uses, and is the path that
 #    native Mojo REST endpoints previously rejected with a 401.
