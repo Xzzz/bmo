@@ -7,6 +7,7 @@
   #%]
 
 [% RETURN UNLESS event.action == 'requested' && event.type.name == 'needinfo' %]
+[%+ event.setter.identity %] needs more information from you to work on this [% terms.bug %].
 [% IF event.requestee_id == bug.reporter.id %]
 Since you reported this [% terms.bug %], the person asking needs your input to understand it. Responding to the question will enable developers to take further action on this [% terms.bug %].
 [% ELSE %]

@@ -13,11 +13,7 @@
 
 [% FOREACH event = flag_events %]
 [% IF event.action == 'requested' %]
-[% IF event.type.name == 'needinfo' %]
-[%+ event.setter.identity %] needs more information from you to work on this [% terms.bug %].
-[% ELSE %]
 [%+ event.setter.identity %] has requested [% event.type.name %][% " for attachment ${event.attachment_id}" IF event.attachment_id %] from you on this [% terms.bug %].
-[% END %]
 [% IF event.attachment && event.attachment.external_redirect %]
 [% external = event.attachment.external_redirect %]
 [%+ external.title _ ": " _ event.attachment.data %]
