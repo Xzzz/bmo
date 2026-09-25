@@ -415,8 +415,6 @@ objects.
 
 =item L<Bugzilla::WebService::Bugzilla>
 
-=item L<Bugzilla::WebService::Product>
-
 =item L<Bugzilla::WebService::User>
 
 =back

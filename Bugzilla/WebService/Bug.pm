@@ -2238,8 +2238,7 @@ This is an array of hashes, representing the legal values for
 select-type (drop-down and multiple-selection) fields. This is also
 populated for the C<component>, C<version>, C<target_milestone>, and C<keywords>
 fields, but not for the C<product> field (you must use
-L<Product.get_accessible_products|Bugzilla::WebService::Product/get_accessible_products>
-for that.
+C<GET /rest/product_accessible> for that).
 
 For fields that aren't select-type fields, this will simply be an empty
 array.
