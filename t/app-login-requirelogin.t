@@ -29,15 +29,16 @@ use Test::Mojo;
 # access must refuse anonymous requests with login_required (internal code
 # 410, HTTP 401), as the legacy dispatcher's Bugzilla->login() does. Two kinds
 # of route are covered: /rest/configuration authenticates while still in
-# USAGE_MODE_REST, /rest/classification/<id> after switching to
-# USAGE_MODE_MOJO_REST.
+# USAGE_MODE_REST, /rest/classification/<id> and /rest/product_accessible
+# after switching to USAGE_MODE_MOJO_REST.
 
 create_user('requirelogin@mozilla.org', '*');
 my $api_key = issue_api_key('requirelogin@mozilla.org')->api_key;
 
 my $t = Test::Mojo->new('Bugzilla::App');
 
-my @routes = ('/rest/configuration', '/rest/classification/1');
+my @routes
+  = ('/rest/configuration', '/rest/classification/1', '/rest/product_accessible');
 
 foreach my $route (@routes) {
   $t->get_ok($route)->status_is(401)->json_is('/code' => 410);
