@@ -58,10 +58,15 @@ if (!$type_id) {
 # Test rows go straight into flag_activity at fixed times around a pinned
 # lastdiffed, so the mail window is deterministic. flag_activity.flag_id
 # has no foreign key, so the flags themselves don't need to exist; ids start
-# high (below the MEDIUMINT limit) to stay clear of real flags.
+# high (below the MEDIUMINT limit) to stay clear of real flags, and above
+# any row left by an earlier run: the look-back in _get_flag_mail_events()
+# goes by flag_id alone.
 my $window_start = '2000-01-01 00:00:00';
 my $window_end   = '2000-01-01 01:00:00';
-my $next_flag_id = 8_000_000;
+my ($max_flag_id)
+  = $dbh->selectrow_array('SELECT MAX(flag_id) FROM flag_activity');
+my $next_flag_id
+  = ($max_flag_id // 0) < 8_000_000 ? 8_000_000 : $max_flag_id + 1;
 
 sub new_bug {
   my (%extra) = @_;
