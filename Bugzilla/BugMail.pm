@@ -586,6 +586,11 @@ sub sendMail {
   $bugmailtype = "new"         if !$bug->lastdiffed;
   $bugmailtype = "dep_changed" if $dep_only;
 
+  # Flag mail used to be sent on its own with "X-Bugzilla-Type: request".
+  # Keep that word in the header of any mail carrying a flag event, so that
+  # filters matching on it still work (bug 1883428).
+  $bugmailtype .= ' request' if @$flag_events;
+
   my $vars = {
     date               => $date,
     to_user            => $user,

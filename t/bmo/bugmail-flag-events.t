@@ -100,6 +100,21 @@ sub sent_to {
   return {map { $_ => 1 } @{$result->{sent}}};
 }
 
+# Like sent_to(), but returns the template variables of each mail generated.
+sub sent_mails {
+  my ($bug, $changer) = @_;
+  my @mails;
+  my $generate = \&Bugzilla::BugMail::_generate_bugmail;
+
+  # local empties the glob first, so this isn't a redefinition.
+  local *Bugzilla::BugMail::_generate_bugmail = sub {
+    push @mails, {%{$_[0]}};
+    return $generate->(@_);
+  };
+  Bugzilla::BugMail::Send($bug->id, {changer => $changer});
+  return @mails;
+}
+
 ## no critic (Variables::ProtectPrivateVars)
 
 # _get_flag_mail_events: one event per in-window row, classified.
@@ -167,6 +182,25 @@ sub sent_to {
 
   ok($sent->{$requester->login}, 'requester is told their request was answered');
   ok(!$sent->{$requestee->login}, 'answerer is not mailed about their own answer');
+}
+
+# Send: mail carrying a flag event keeps "request" in X-Bugzilla-Type, as the
+# old flag mail had, whether the flag was requested or answered.
+{
+  my $bug = new_bug();
+  add_activity($bug, $next_flag_id++, '2000-01-01 00:00:10', '?', $requester,
+    $requestee);
+  my ($mail) = grep { $_->{to_user}->id == $requestee->id }
+    sent_mails($bug, $requester);
+  is($mail->{bugmailtype}, 'changed request', 'a request is marked as request mail');
+
+  $bug = new_bug();
+  my $flag_id = $next_flag_id++;
+  add_activity($bug, $flag_id, '1999-12-31 23:00:00', '?', $requester, $requestee);
+  add_activity($bug, $flag_id, '2000-01-01 00:00:10', '+', $requestee);
+  ($mail) = grep { $_->{to_user}->id == $requester->id }
+    sent_mails($bug, $requestee);
+  is($mail->{bugmailtype}, 'changed request', 'an answer is marked as request mail');
 }
 
 # Send: cancelling your own request doesn't mail you.
