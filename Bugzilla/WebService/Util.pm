@@ -41,6 +41,18 @@ our @EXPORT_OK = qw(
   fix_credentials
   set_rest_cors_headers
   merge_request_params
+  strip_request_params
+);
+
+# Parameters that describe the request rather than the object it acts on:
+# field selection, plus every spelling of a credential the legacy layer
+# accepted and removed during login. Native controllers do not log in through
+# that code, so nothing removes them from the merged params.
+use constant REQUEST_PARAMS => qw(
+  include_fields exclude_fields
+  Bugzilla_api_key Bugzilla_api_token Bugzilla_login Bugzilla_password
+  Bugzilla_restrictlogin Bugzilla_token
+  api_key login password restrictlogin token
 );
 
 sub set_rest_cors_headers {
@@ -341,6 +353,13 @@ sub merge_request_params {
   return ($params, undef);
 }
 
+sub strip_request_params {
+  my ($params, @also) = @_;
+  my %values = %$params;
+  delete @values{REQUEST_PARAMS, @also};
+  return \%values;
+}
+
 sub fix_credentials {
   my ($params, $cgi) = @_;
 
@@ -461,6 +480,15 @@ a parameter's type must not depend on the number of occurrences sent.
 If the request has a non-empty body that fails to decode as JSON, C<$params>
 is C<undef> and C<$error> is set to C<rest_malformed_json>; callers should
 pass it to C<user_error>. Otherwise C<$error> is C<undef>.
+
+=head2 strip_request_params
+
+Takes the hashref returned by L</merge_request_params> and returns a copy
+without the C<REQUEST_PARAMS> keys (C<include_fields>, C<exclude_fields> and
+the authentication parameters), plus any further names passed after it, e.g.
+C<strip_request_params($params, qw(ids names))>. For controllers that hand
+what is left to C<set_all>, which raises C<unknown_method> on any key that is
+not a field of the object.
 
 =head2 fix_credentials
 

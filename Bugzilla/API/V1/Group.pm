@@ -16,7 +16,8 @@ use Bugzilla::Constants;
 use Bugzilla::Error;
 use Bugzilla::Group;
 use Bugzilla::User;
-use Bugzilla::WebService::Util qw(merge_request_params params_to_objects translate validate);
+use Bugzilla::WebService::Util
+  qw(merge_request_params params_to_objects strip_request_params translate validate);
 
 use constant MAPPED_RETURNS =>
   {userregexp => 'user_regexp', isactive => 'is_active'};
@@ -109,17 +110,12 @@ sub update {
   # Drop the request-level keys that are not group fields and pass everything
   # else through, so set_all() still raises unknown_method on an unrecognized
   # field rather than silently ignoring it.
-  my %values = %$params;
-  delete @values{
-    qw(ids names include_fields exclude_fields
-      Bugzilla_api_key Bugzilla_api_token Bugzilla_login Bugzilla_password
-      api_key login password token)
-  };
+  my $values = strip_request_params($params, qw(ids names));
 
   my $dbh = Bugzilla->dbh;
   $dbh->bz_start_transaction();
   foreach my $group (@$group_objects) {
-    $group->set_all(\%values);
+    $group->set_all($values);
   }
 
   my %changes;
