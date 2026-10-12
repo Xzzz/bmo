@@ -9,6 +9,8 @@
 [% USE Bugzilla %]
 [% RETURN UNLESS event.action == 'requested'
       && (event.type.name == 'review' || event.type.name == 'feedback')
-      && event.attachment && event.attachment.can_review %]
+      && event.attachment
+      && (event.attachment.ispatch
+          || event.attachment.contenttype == 'text/x-github-pull-request') %]
 <br>
 <a href="[% Bugzilla.splinter_review_url(bug.id, event.attachment_id, 1) FILTER html %]">Review</a>
