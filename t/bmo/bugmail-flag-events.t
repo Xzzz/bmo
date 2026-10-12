@@ -64,6 +64,7 @@ my $window_end   = '2000-01-01 01:00:00';
 my $next_flag_id = 8_000_000;
 
 sub new_bug {
+  my (%extra) = @_;
   my $bug = Bugzilla::Bug->create({
     short_desc   => 'Flag mail test',
     product      => 'Firefox',
@@ -78,6 +79,7 @@ sub new_bug {
     cc           => [],
     comment      => 'Flag mail test',
     assigned_to  => 'nobody@mozilla.org',
+    %extra,
   });
   $dbh->do('UPDATE bugs SET lastdiffed = ? WHERE bug_id = ?',
     undef, $window_start, $bug->id);
@@ -213,6 +215,29 @@ sub sent_mails {
 
   ok(!$sent->{$requester->login}, 'requester is not mailed for cancelling their own request');
   ok($sent->{$type_cc->login},    'flag type cc_list account is still mailed');
+}
+
+# Send: someone mailed only because of a flag gets the flag section alone.
+# With another role on the bug they get the comments too.
+{
+  my $bug = new_bug();
+  add_activity($bug, $next_flag_id++, '2000-01-01 00:00:10', '?', $requester,
+    $requestee);
+  my ($mail) = grep { $_->{to_user}->id == $requestee->id }
+    sent_mails($bug, $requester);
+
+  is(scalar @{$mail->{flag_events}}, 1,
+    'requestee with no role on the bug gets the flag event');
+  ok(!@{$mail->{new_comments}} && !@{$mail->{diffs}}, 'and no comments or diffs');
+
+  $bug = new_bug(cc => [$requestee->login]);
+  add_activity($bug, $next_flag_id++, '2000-01-01 00:00:10', '?', $requester,
+    $requestee);
+  ($mail) = grep { $_->{to_user}->id == $requestee->id }
+    sent_mails($bug, $requester);
+
+  ok(scalar @{$mail->{new_comments}},
+    'requestee who is also CCed gets the comments too');
 }
 
 # A '?' with no requestee (e.g. approval-*) reaches the flag type cc_list

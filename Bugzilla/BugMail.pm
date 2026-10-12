@@ -448,16 +448,26 @@ sub Send {
             :                                           ();
         } @flag_events;
 
+        # Someone mailed only because of a flag (they have no other role on
+        # the bug, or ignore it, or don't want this change in their other
+        # roles) gets the flag section alone, as the old flag mail did, not
+        # every diff and comment.
+        my $flag_only = !grep {
+               $_ != REL_FLAG_REQUESTEE
+            && $_ != REL_FLAG_REQUESTER
+            && $_ != REL_FLAG_TYPE_CC
+        } keys %rels_which_want;
+
         my $sent_mail = sendMail({
           to                 => $user,
           bug                => $bug,
-          comments           => $comments,
+          comments           => $flag_only ? [] : $comments,
           date               => $date,
           changer            => $changer,
           watchers           => exists $watching{$user_id} ? $watching{$user_id} : undef,
-          diffs              => \@diffs,
+          diffs              => $flag_only ? [] : \@diffs,
           rels_which_want    => \%rels_which_want,
-          referenced_bugs    => $referenced_bugs,
+          referenced_bugs    => $flag_only ? [] : $referenced_bugs,
           dep_only           => $params->{dep_only},
           blocker_short_desc => $blocker_short_desc,
           flag_events        => \@user_flag_events,
