@@ -27,10 +27,8 @@ use Bugzilla::App::Controller::API;
 # Bugzilla::API::V1 also holds helper modules that are not controllers, such
 # as Util. Loading the routes must skip them rather than warn at every startup.
 my @warnings;
-{
-  no warnings 'redefine';
-  *Bugzilla::App::Controller::API::WARN = sub { push @warnings, @_ };
-}
+my $mock = mock 'Bugzilla::App::Controller::API' =>
+  (override => [WARN => sub { push @warnings, @_ }]);
 
 my $t = Test::Mojo->new('Bugzilla::App');
 
