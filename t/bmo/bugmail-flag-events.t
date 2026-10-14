@@ -222,8 +222,8 @@ sub sent_mails {
   ok($sent->{$type_cc->login},    'flag type cc_list account is still mailed');
 }
 
-# Send: someone mailed only because of a flag gets the flag section alone.
-# With another role on the bug they get the comments too.
+# Send: someone mailed only because of a flag gets the flag section and the
+# comments (so a requestee sees the question), but no diffs.
 {
   my $bug = new_bug();
   add_activity($bug, $next_flag_id++, '2000-01-01 00:00:10', '?', $requester,
@@ -233,7 +233,8 @@ sub sent_mails {
 
   is(scalar @{$mail->{flag_events}}, 1,
     'requestee with no role on the bug gets the flag event');
-  ok(!@{$mail->{new_comments}} && !@{$mail->{diffs}}, 'and no comments or diffs');
+  ok(scalar @{$mail->{new_comments}}, 'and the comments');
+  ok(!@{$mail->{diffs}},              'but no diffs');
 
   $bug = new_bug(cc => [$requestee->login]);
   add_activity($bug, $next_flag_id++, '2000-01-01 00:00:10', '?', $requester,

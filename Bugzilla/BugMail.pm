@@ -450,8 +450,8 @@ sub Send {
 
         # Someone mailed only because of a flag (they have no other role on
         # the bug, or ignore it, or don't want this change in their other
-        # roles) gets the flag section alone, as the old flag mail did, not
-        # every diff and comment.
+        # roles) gets the flag section and the new comments, as the old flag
+        # mail did (so a requestee sees the question), but not every diff.
         my $flag_only = !grep {
                $_ != REL_FLAG_REQUESTEE
             && $_ != REL_FLAG_REQUESTER
@@ -461,7 +461,7 @@ sub Send {
         my $sent_mail = sendMail({
           to                 => $user,
           bug                => $bug,
-          comments           => $flag_only ? [] : $comments,
+          comments           => $comments,
           date               => $date,
           changer            => $changer,
           watchers           => exists $watching{$user_id} ? $watching{$user_id} : undef,
