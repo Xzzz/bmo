@@ -136,14 +136,16 @@ sub attachments {
 sub add_attachment {
   my ($self) = @_;
 
-  # BMO: Don't allow updating of bugs if disabled. The legacy server reported
-  # this ThrowErrorPage() as an unknown transient error.
+  # BMO: Don't allow updating of bugs if disabled. The legacy REST server
+  # answered this with the HTML "updates disabled" page, as ThrowErrorPage()
+  # only returns an error object in JSON-RPC mode. Return the JSON error an API
+  # client can handle, with the generic code user_error() uses for an error
+  # that has no code of its own.
   if (Bugzilla->params->{disable_bug_updates}) {
-    my $code = 100000 + ERROR_UNKNOWN_TRANSIENT;
     return $self->render(
       json => {
         error         => 1,
-        code          => $code,
+        code          => ERROR_UNKNOWN_TRANSIENT,
         message       => 'Bug updates are currently disabled.',
         documentation => 'https://bmo.readthedocs.io/en/latest/api/',
       },
