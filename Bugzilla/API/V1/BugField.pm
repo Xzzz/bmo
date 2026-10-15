@@ -32,20 +32,17 @@ sub setup_routes {
   my $routes
     = $r->under('/' => sub { Bugzilla->usage_mode(USAGE_MODE_MOJO_REST); });
 
-  $routes->get('/field/bug')->to('V1::BugField#fields');
-  $routes->get('/field/bug/#id_or_name')->to('V1::BugField#fields');
-  $routes->get('/field/bug/#field/values')->to('V1::BugField#legal_values');
-  $routes->get('/field/bug/#field/#product_id/values')
-    ->to('V1::BugField#legal_values');
-  $routes->get('/flag_types/#product')->to('V1::BugField#flag_types');
-  $routes->get('/flag_types/#product/#component')->to('V1::BugField#flag_types');
-
-  foreach my $path (
-    '/field/bug',               '/field/bug/#id_or_name',
-    '/field/bug/#field/values', '/field/bug/#field/#product_id/values',
-    '/flag_types/#product',     '/flag_types/#product/#component'
-    )
-  {
+  my @routes = (
+    ['/field/bug'                           => 'fields'],
+    ['/field/bug/#id_or_name'               => 'fields'],
+    ['/field/bug/#field/values'             => 'legal_values'],
+    ['/field/bug/#field/#product_id/values' => 'legal_values'],
+    ['/flag_types/#product'                 => 'flag_types'],
+    ['/flag_types/#product/#component'      => 'flag_types'],
+  );
+  foreach my $route (@routes) {
+    my ($path, $action) = @$route;
+    $routes->get($path)->to("V1::BugField#$action");
     $routes->options($path)->to('V1::BugField#options');
   }
 }
