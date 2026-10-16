@@ -163,11 +163,6 @@ There are two ways to authenticate yourself:
 
 =over
 
-=item C<User.login>
-
-You can use L<Bugzilla::WebService::User/login> to log in as a Bugzilla
-user. This issues a token that you must then use in future calls.
-
 =item C<Bugzilla_api_key>
 
 B<Added in Bugzilla 5.0>
@@ -204,31 +199,11 @@ release after Bugzilla 5.0 and you will be required to pass the Bugzilla_login
 and Bugzilla_password for every call.
 
 Note that Bugzilla will return HTTP cookies along with the method
-response when you use these arguments (just like the C<User.login> method
-above).
+response when you use these arguments.
 
 For REST, you may also use the C<login> and C<password> variable
 names instead of C<Bugzilla_login> and C<Bugzilla_password> as a
 convenience.
-
-=back
-
-There are also two deprecated methods of authentications. This will be
-removed in the version after Bugzilla 5.0.
-
-=over
-
-=item C<User.login>
-
-You can use L<Bugzilla::WebService::User/login> to log in as a Bugzilla
-user. This issues a token that you must then use in future calls.
-
-=item B<Added in Bugzilla 4.4.3>
-
-An error is now thrown if you pass invalid cookies or an invalid token.
-You will need to log in again to get new cookies or a new token. Previous
-releases simply ignored invalid cookies and token support was added in
-Bugzilla B<5.0>.
 
 =back
 
@@ -414,7 +389,5 @@ objects.
 =item L<Bugzilla::WebService::Bug>
 
 =item L<Bugzilla::WebService::Bugzilla>
-
-=item L<Bugzilla::WebService::User>
 
 =back
