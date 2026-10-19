@@ -301,11 +301,11 @@ Invalid field names are ignored.
 
 Example:
 
-  User.get( ids => [1], include_fields => ['id', 'name'] )
+  Bug.get( ids => [1], include_fields => ['id', 'summary'] )
 
 would return something like:
 
-  { users => [{ id => 1, name => 'user@domain.com' }] }
+  { bugs => [{ id => 1, summary => 'Crash on startup' }] }
 
 Note for REST, C<include_fields> may instead be a comma delimited string
 for GET type requests.
@@ -333,11 +333,12 @@ field in both, it will be excluded, not included.
 
 Example:
 
-  User.get( ids => [1], exclude_fields => ['name'] )
+  Bug.get( ids => [1], include_fields => ['id', 'summary', 'status'],
+           exclude_fields => ['summary'] )
 
 would return something like:
 
-  { users => [{ id => 1, real_name => 'John Smith' }] }
+  { bugs => [{ id => 1, status => 'NEW' }] }
 
 Note for REST, C<exclude_fields> may instead be a comma delimited string
 for GET type requests.
