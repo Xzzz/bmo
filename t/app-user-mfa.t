@@ -20,7 +20,6 @@ use Bugzilla::Test::MockDB;
 use Bugzilla::Test::Util qw(create_user issue_api_key);
 
 use Auth::GoogleAuth;
-use Bugzilla::Constants;
 use Bugzilla::MFA;
 use Bugzilla::Token qw(issue_short_lived_session_token);
 use Test2::V0;
