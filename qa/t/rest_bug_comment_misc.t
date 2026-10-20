@@ -74,6 +74,18 @@ $t->post_ok($url . 'rest/bug/comment/render' => $headers => json => {})
   ->status_isnt(200)
   ->json_like('/message' => qr/text/);
 
+# Extensions hook into render_comment: the Needinfo extension lists who the
+# comment's @mentions would CC and needinfo, only when asked for a given bug.
+$t->post_ok($url
+    . 'rest/bug/comment/render' => $headers => json =>
+    {text => '@nobody-has-this-nick', id => $bug_id, include_mentions => 1})
+  ->status_is(200);
+$t->json_is('/mentions' => [], 'mentions returned through the hook');
+$t->post_ok($url
+    . 'rest/bug/comment/render' => $headers => json =>
+    {text => '@nobody-has-this-nick', id => $bug_id})->status_is(200);
+$t->json_hasnt('/mentions', 'no mentions unless include_mentions is set');
+
 # search_comment_tags finds a tag added through update_comment_tags.
 my $tag = 'misc' . lc random_string(8);
 $t->put_ok(

@@ -19,6 +19,7 @@ use Bugzilla::Comment;
 use Bugzilla::Comment::TagWeights;
 use Bugzilla::Constants;
 use Bugzilla::Error;
+use Bugzilla::Hook;
 use Bugzilla::Template;
 use Bugzilla::Util qw(datetime_from detaint_natural remote_ip trim);
 use Bugzilla::WebService::Constants;
@@ -268,7 +269,15 @@ sub render_comment {
     ? Bugzilla->markdown->render_html($params->{text}, $bug)
     : Bugzilla::Template::quoteUrls($params->{text}, $bug);
 
-  return $self->render(json => {html => $html});
+  # Extensions can add params and return values. When id is given, the Needinfo
+  # extension accepts include_mentions and mention_is_private and returns
+  # mentions: the users that saving the comment on that bug would CC and
+  # needinfo, shown by the comment preview.
+  my $result = {html => $html};
+  Bugzilla::Hook::process('webservice_bug_render_comment',
+    {webservice => $self, bug => $bug, params => $params, result => $result});
+
+  return $self->render(json => $result);
 }
 
 # GET /bug/comment/<comment_id>/reactions
