@@ -196,8 +196,8 @@ sub add_comment {
   my $user = $self->bugzilla->login;
   $user->id || return $self->user_error('login_required');
 
-  my ($params, $error) = $self->_request_params;
-  return $self->user_error($error) if $error;
+  my ($params, $error, $vars) = $self->_request_params;
+  return $self->user_error($error, $vars) if $error;
 
   # Check parameters
   my $comment = $params->{comment};
@@ -252,8 +252,8 @@ sub render_comment {
 
   $self->bugzilla->login;
 
-  my ($params, $error) = $self->_request_params;
-  return $self->user_error($error) if $error;
+  my ($params, $error, $vars) = $self->_request_params;
+  return $self->user_error($error, $vars) if $error;
 
   unless (defined $params->{text}) {
     return $self->code_error('params_required',
@@ -409,7 +409,8 @@ sub _request_params {
 
   # A bug id is a single value. A hash here would reach Bugzilla::Bug->check()
   # as a set of object conditions. (A comment_id hash fails detaint_natural.)
-  return (undef, 'invalid_params') if ref $params->{id};
+  return (undef, 'invalid_params', {type_error => 'id must be a single value'})
+    if ref $params->{id};
 
   return ($params, undef);
 }
@@ -423,9 +424,9 @@ sub _visible_comment {
   my ($self, $function) = @_;
   my $user = Bugzilla->user;
 
-  my ($params, $error) = $self->_request_params;
+  my ($params, $error, $vars) = $self->_request_params;
   if ($error) {
-    $self->user_error($error);
+    $self->user_error($error, $vars);
     return (undef, undef, 1);
   }
 

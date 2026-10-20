@@ -62,7 +62,8 @@ $t->post_ok($url
     . 'rest/bug/public_bug/comment' => $headers => json =>
     {id => {condition => 'bug_id = ?', values => [$bug_id]}, comment => 'x'})
   ->status_is(400)
-  ->json_is('/error' => 1);
+  ->json_is('/error' => 1)
+  ->json_like('/message' => qr/id must be a single value/);
 
 # render_comment
 $t->post_ok(
