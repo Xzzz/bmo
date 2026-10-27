@@ -285,7 +285,15 @@ use constant OPERATOR_FIELD_OVERRIDE => {
   dependson        => MULTI_SELECT_OVERRIDE,
   duplicates       => MULTI_SELECT_OVERRIDE,
   keywords         => MULTI_SELECT_OVERRIDE,
-  'flagtypes.name' => {_non_changed => \&_flagtypes_nonchanged,},
+  'flagtypes.name' => {
+    _non_changed  => \&_flagtypes_nonchanged,
+    changedbefore => \&_flagtypes_changed,
+    changedafter  => \&_flagtypes_changed,
+    changedfrom   => \&_flagtypes_changed,
+    changedto     => \&_flagtypes_changed,
+    changedby     => \&_flagtypes_changed,
+    everchanged   => \&_flagtypes_changed,
+  },
   longdesc         => {
     changedby     => \&_long_desc_changedby,
     everchanged   => \&_long_desc_everchanged,
@@ -3743,6 +3751,75 @@ sub _changed_security_check {
 
     $args->{term} .= " AND COALESCE(attach_${field_id}_$chart_id.isprivate, 0) = 0";
   }
+}
+
+# Flag changes are recorded in flag_activity. Older changes are only in
+# bugs_activity, so match either. flag_id 0 rows are backfilled copies of
+# bugs_activity rows and are skipped.
+sub _flagtypes_changed {
+  my ($self, $args) = @_;
+  my $dbh = Bugzilla->dbh;
+  $self->_convert_everchanged($args) if $args->{operator} eq 'everchanged';
+  my ($chart_id, $operator, $value, $bugs_table)
+    = @$args{qw(chart_id operator value bugs_table)};
+
+  $self->_do_operator_function($args);
+  my $legacy_term = $args->{term};
+
+  my $fa    = "flag_act_$chart_id";
+  my @where = ("$fa.bug_id = $bugs_table.bug_id", "$fa.flag_id != 0");
+
+  if ($operator =~ /^changed(before|after)$/) {
+    my $sql_operator = $1 eq 'before' ? '<=' : '>=';
+    my $sql_date = $dbh->quote(SqlifyDate($value));
+    push @where, "$fa.flag_when $sql_operator $sql_date";
+  }
+  elsif ($operator eq 'changedby') {
+    my $user_id = $value =~ /^\d+$/ ? $value : $self->_get_user_id($value);
+    push @where, "$fa.setter_id = $user_id";
+  }
+  elsif ($operator eq 'changedto') {
+    my $match = _flag_state_match($fa, $value) or return;
+    push @where, $match;
+  }
+  else {    # changedfrom: the state before this change
+    my $prev  = "flag_prev_$chart_id";
+    my $match = _flag_state_match($prev, $value) or return;
+    push @where, "EXISTS (
+      SELECT 1 FROM flag_activity $prev
+       WHERE $prev.id = (SELECT MAX(p2.id) FROM flag_activity p2
+                          WHERE p2.flag_id = $fa.flag_id AND p2.id < $fa.id)
+         AND $match)";
+  }
+
+  if (!$self->_user->is_insider) {
+    push @where, "COALESCE((SELECT isprivate FROM attachments
+                             WHERE attach_id = $fa.attachment_id), 0) = 0";
+  }
+
+  $args->{term} = "(($legacy_term) OR EXISTS (SELECT 1 FROM flag_activity $fa
+                    WHERE " . join(' AND ', @where) . '))';
+}
+
+# SQL matching a flag_activity row against a history value like
+# "review+" or "review?(user@example.com)". Returns nothing if the value
+# isn't a flag state.
+sub _flag_state_match {
+  my ($table, $value) = @_;
+  my $dbh = Bugzilla->dbh;
+  my ($name, $status, $requestee)
+    = $value =~ /^\s*(.+?)([?+\-])(?:\(([^)]+)\))?\s*$/
+    or return;
+
+  my $sql = "$table.type_id IN (SELECT id FROM flagtypes WHERE name = "
+    . $dbh->quote($name) . ") AND $table.status = " . $dbh->quote($status);
+  if ($status eq '?') {
+    $sql .= $requestee
+      ? " AND $table.requestee_id = (SELECT userid FROM profiles"
+      . ' WHERE login_name = ' . $dbh->quote($requestee) . ')'
+      : " AND $table.requestee_id IS NULL";
+  }
+  return $sql;
 }
 
 sub _isempty {
