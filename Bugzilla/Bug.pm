@@ -4947,11 +4947,11 @@ sub GetBugActivity {
                          THEN CONCAT(ft.name, '?(', req.login_name, ')')
                     ELSE CONCAT(ft.name, fsa.status)
                END AS added,
-               setter.login_name AS who,
+               changer.login_name AS who,
                NULL AS comment_id
           FROM flag_activity fsa
           JOIN flagtypes ft ON ft.id = fsa.type_id
-          JOIN profiles setter ON setter.userid = fsa.setter_id
+          JOIN profiles changer ON changer.userid = fsa.who
           LEFT JOIN profiles req ON req.userid = fsa.requestee_id
           LEFT JOIN flag_activity prev
                  ON fsa.flag_id != 0

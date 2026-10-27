@@ -844,6 +844,10 @@ sub update_table_definitions {
   # Bug 1949556 - dkl@mozilla.com
   $dbh->bz_add_index('audit_log', 'audit_log_object_id_idx', ['object_id']);
 
+  # Bug 2085398 - xavier.lhour@gmail.com
+  # Before _migrate_flag_state_activity, which copies into this column.
+  _add_flag_activity_who();
+
   # Bug 1806896 - xavier.lhour@gmail.com
   _migrate_flag_state_activity();
 
@@ -4531,14 +4535,32 @@ sub _migrate_flag_state_activity {
   # id is not carried over: nothing references flag_activity.id externally.
   $dbh->do(
     'INSERT INTO flag_activity
-       (flag_when, type_id, flag_id, setter_id, requestee_id, bug_id,
+       (flag_when, type_id, flag_id, setter_id, who, requestee_id, bug_id,
         attachment_id, status)
-     SELECT flag_when, type_id, flag_id, setter_id, requestee_id, bug_id,
-            attachment_id, status
+     SELECT flag_when, type_id, flag_id, setter_id, setter_id, requestee_id,
+            bug_id, attachment_id, status
        FROM flag_state_activity'
   );
 
   $dbh->bz_drop_table('flag_state_activity');
+}
+
+sub _add_flag_activity_who {
+  my $dbh = Bugzilla->dbh;
+
+  return if $dbh->bz_column_info('flag_activity', 'who');
+
+  # Existing rows don't record who made the change; the setter is the best
+  # value available.
+  $dbh->bz_add_column('flag_activity', 'who',
+    {TYPE => 'INT3', REFERENCES => {TABLE => 'profiles', COLUMN => 'userid'}});
+  $dbh->do('UPDATE flag_activity SET who = setter_id');
+  $dbh->bz_alter_column('flag_activity', 'who',
+    {
+    TYPE       => 'INT3',
+    NOTNULL    => 1,
+    REFERENCES => {TABLE => 'profiles', COLUMN => 'userid'}
+    });
 }
 
 sub _remove_duo_recovery_codes {

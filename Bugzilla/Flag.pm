@@ -494,6 +494,7 @@ sub create {
   Bugzilla::FlagActivity->create({
     flag_when     => $timestamp,
     setter_id     => $flag->setter_id,
+    who           => Bugzilla->user->id || $flag->setter_id,
     status        => $flag->status,
     type_id       => $flag->type_id,
     flag_id       => $flag->id,
@@ -522,6 +523,7 @@ sub update {
     Bugzilla::FlagActivity->create({
       flag_when     => $timestamp,
       setter_id     => $self->setter_id,
+      who           => Bugzilla->user->id || $self->setter_id,
       status        => $self->status,
       type_id       => $self->type_id,
       flag_id       => $self->id,
@@ -603,6 +605,7 @@ sub update_flags {
     Bugzilla::FlagActivity->create({
       flag_when     => $timestamp,
       setter_id     => Bugzilla->user->id || $old_flag->setter_id,
+      who           => Bugzilla->user->id || $old_flag->setter_id,
       status        => 'X',
       type_id       => $old_flag->type_id,
       flag_id       => $old_flag->id,
@@ -725,6 +728,7 @@ sub force_retarget {
       Bugzilla::FlagActivity->create({
         flag_when     => $timestamp,
         setter_id     => Bugzilla->user->id || $flag->setter_id,
+        who           => Bugzilla->user->id || $flag->setter_id,
         status        => 'X',
         type_id       => $flag->type_id,
         flag_id       => $flag->id,

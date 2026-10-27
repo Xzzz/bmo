@@ -744,7 +744,7 @@ sub _get_diffs {
                END AS new,
                fsa.attachment_id AS attach_id,
                NULL AS comment_id,
-               fsa.setter_id AS who
+               fsa.who AS who
           FROM flag_activity fsa
           JOIN flagtypes ft ON ft.id = fsa.type_id
           LEFT JOIN profiles req ON req.userid = fsa.requestee_id

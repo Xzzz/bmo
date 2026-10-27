@@ -96,23 +96,22 @@ sub find_activity_id_for_attachment {
 
 sub find_activity_id_for_flag {
   my ($self, $flag) = @_;
-  my $flag_id   = $flag->id;
-  my $setter_id = $flag->setter->id;
-  my $stream    = $self->activity_stream;
+  my $flag_id = $flag->id;
+  my $stream  = $self->activity_stream;
 
   if (!exists $self->{activity_cache}->{flag}->{$flag_id}) {
     # flag_activity records each change against the flag's object id, so we
     # can look up the exact timestamp without relying on flag-type name matching.
-    my ($flag_when) = Bugzilla->dbh->selectrow_array(
-      "SELECT flag_when FROM flag_activity WHERE flag_id = ?
-       ORDER BY flag_when DESC LIMIT 1",
+    my ($flag_when, $who) = Bugzilla->dbh->selectrow_array(
+      "SELECT flag_when, who FROM flag_activity WHERE flag_id = ?
+       ORDER BY id DESC LIMIT 1",
       undef, $flag_id
     );
 
     SEARCH: foreach my $change_set (reverse @$stream) {
       foreach my $activity (@{$change_set->{activity}}) {
         next unless $flag_when
-          && $activity->{who}->id == $setter_id
+          && $activity->{who}->id == $who
           && $activity->{when} eq $flag_when;
         foreach my $change (@{$activity->{changes}}) {
           next unless $change->{fieldname} eq 'flagtypes.name';

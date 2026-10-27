@@ -167,7 +167,7 @@ sub report {
         INNER JOIN flagtypes ft
                 ON ft.id = fsa.type_id
         INNER JOIN profiles
-                ON profiles.userid = fsa.setter_id
+                ON profiles.userid = fsa.who
          LEFT JOIN profiles req
                 ON req.userid = fsa.requestee_id
          LEFT JOIN flag_activity prev

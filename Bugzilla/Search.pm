@@ -3776,7 +3776,7 @@ sub _flagtypes_changed {
   }
   elsif ($operator eq 'changedby') {
     my $user_id = $value =~ /^\d+$/ ? $value : $self->_get_user_id($value);
-    push @where, "$fa.setter_id = $user_id";
+    push @where, "$fa.who = $user_id";
   }
   elsif ($operator eq 'changedto') {
     my $match = _flag_state_match($fa, $value) or return;

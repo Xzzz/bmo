@@ -747,6 +747,13 @@ use constant ABSTRACT_SCHEMA => {
         NOTNULL    => 1,
         REFERENCES => {TABLE => 'profiles', COLUMN => 'userid'},
       },
+      # The user who made the change. Not always the setter: redirecting a
+      # request keeps the original setter.
+      who          => {
+        TYPE       => 'INT3',
+        NOTNULL    => 1,
+        REFERENCES => {TABLE => 'profiles', COLUMN => 'userid'},
+      },
       requestee_id => {
         TYPE       => 'INT3',
         REFERENCES => {TABLE => 'profiles', COLUMN => 'userid'},

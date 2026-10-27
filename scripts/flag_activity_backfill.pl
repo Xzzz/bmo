@@ -181,10 +181,10 @@ sub backfill_batch {
       unless ($dry_run) {
         $dbh->do(
           "INSERT INTO flag_activity
-             (flag_when, type_id, flag_id, setter_id, requestee_id,
+             (flag_when, type_id, flag_id, setter_id, who, requestee_id,
               bug_id, attachment_id, status)
-           VALUES (?, ?, 0, ?, ?, ?, ?, ?)", undef, $row->{bug_when}, $type_id,
-          $row->{who}, $requestee_id, $row->{bug_id}, $row->{attach_id}, $change->{status}
+           VALUES (?, ?, 0, ?, ?, ?, ?, ?, ?)", undef, $row->{bug_when}, $type_id,
+          $row->{who}, $row->{who}, $requestee_id, $row->{bug_id}, $row->{attach_id}, $change->{status}
         );
       }
 

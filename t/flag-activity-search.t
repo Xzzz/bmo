@@ -62,9 +62,10 @@ for my $row (['2026-01-01 10:00:00', '?', $bob->id],
 {
   $dbh->do(
     'INSERT INTO flag_activity
-       (flag_when, type_id, flag_id, setter_id, requestee_id, bug_id, status)
-     VALUES (?, ?, 42, ?, ?, ?, ?)', undef, $row->[0], $review_id, $alice->id,
-    $row->[2], $current_bug, $row->[1]
+       (flag_when, type_id, flag_id, setter_id, who, requestee_id, bug_id,
+        status)
+     VALUES (?, ?, 42, ?, ?, ?, ?, ?)', undef, $row->[0], $review_id,
+    $alice->id, $alice->id, $row->[2], $current_bug, $row->[1]
   );
 }
 

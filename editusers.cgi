@@ -527,6 +527,7 @@ elsif ($action eq 'delete') {
         Bugzilla::FlagActivity->create({
           flag_when     => $timestamp,
           setter_id     => $userid,
+          who           => $userid,
           status        => $flag->status,
           type_id       => $flag->type_id,
           flag_id       => $flag->id,

@@ -64,9 +64,9 @@ add_activity('2020-01-01 10:00:00',
 add_activity('2020-01-02 10:00:00', 'review?(alice@bmo.test)', 'review+');
 $dbh->do(
   'INSERT INTO flag_activity
-     (flag_when, type_id, flag_id, setter_id, requestee_id, bug_id, status)
-   VALUES (?, ?, 42, ?, NULL, ?, ?)', undef, '2020-01-02 10:00:00', $review_id,
-  $setter->id, $bug_id, '+'
+     (flag_when, type_id, flag_id, setter_id, who, requestee_id, bug_id, status)
+   VALUES (?, ?, 42, ?, ?, NULL, ?, ?)', undef, '2020-01-02 10:00:00', $review_id,
+  $setter->id, $setter->id, $bug_id, '+'
 );
 
 # A flag cleared, asked from an account that no longer exists.
