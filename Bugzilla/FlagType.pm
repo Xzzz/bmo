@@ -216,21 +216,29 @@ sub update {
 
   $dbh->bz_commit_transaction();
 
-  # An inclusion/exclusion edit can touch many bugs, so queue the bugmail
-  # rather than run a full Send() per bug inside this request.
-  my @bug_ids = sort { $a <=> $b } keys %retargeted_bug_ids;
-  if (@bug_ids && Bugzilla->get_param_with_override('use_mailer_queue')) {
-    Bugzilla->job_queue->insert('bug_mail_send',
-      {bug_ids => \@bug_ids, changer_id => Bugzilla->user->id});
-  }
-  elsif (@bug_ids) {
-
-    # Bugzilla::BugMail uses this module, so load it lazily.
-    require Bugzilla::BugMail;
-    Bugzilla::BugMail::Send($_, {changer => Bugzilla->user}) foreach @bug_ids;
-  }
+  _send_retargeted_bugmail([sort { $a <=> $b } keys %retargeted_bug_ids]);
 
   return $changes;
+}
+
+# An inclusion/exclusion edit can touch many bugs, so queue the bugmail
+# rather than run a full Send() per bug inside the request. One job per bug:
+# a job has to finish within the mailer's grab_for, and a retry re-mails the
+# recipients of its bugs that were already sent.
+sub _send_retargeted_bugmail {
+  my ($bug_ids) = @_;
+  return if !@$bug_ids;
+
+  if (Bugzilla->get_param_with_override('use_mailer_queue')) {
+    Bugzilla->job_queue->insert('bug_mail_send',
+      {bug_ids => [$_], changer_id => Bugzilla->user->id})
+      foreach @$bug_ids;
+    return;
+  }
+
+  # Bugzilla::BugMail uses this module, so load it lazily.
+  require Bugzilla::BugMail;
+  Bugzilla::BugMail::Send($_, {changer => Bugzilla->user}) foreach @$bug_ids;
 }
 
 sub _bug_ids_for_flags {

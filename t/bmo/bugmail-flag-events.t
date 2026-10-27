@@ -266,4 +266,21 @@ sub sent_mails {
   ok($raw->{$raw_cc},           'cc_list address with no account takes the raw mail path');
 }
 
+# A flag type edit queues one bugmail job per bug it touched.
+{
+  my @jobs;
+  local Bugzilla->localconfig->param_override->{use_mailer_queue} = 1;
+
+  # Loaded first, or loading it would replace the mock.
+  require Bugzilla::JobQueue;
+  no warnings 'redefine';
+  local *Bugzilla::JobQueue::insert = sub { push @jobs, [@_[1, 2]] };
+  Bugzilla::FlagType::_send_retargeted_bugmail([3, 5]);
+  is_deeply(
+    [map { [$_->[0], $_->[1]{bug_ids}] } @jobs],
+    [['bug_mail_send', [3]], ['bug_mail_send', [5]]],
+    'a flag type edit queues one bugmail job per bug'
+  );
+}
+
 done_testing;

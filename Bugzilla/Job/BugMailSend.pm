@@ -18,9 +18,9 @@ use parent qw(Bugzilla::Job::Mailer);
 
 # Runs BugMail::Send for a list of bugs, for callers that touch too many
 # bugs to do it inside the web request (e.g. a flag type inclusion/exclusion
-# edit clearing flags across many bugs). A retry after a partial failure
-# doesn't re-mail bugs already done: Send advances lastdiffed, so their
-# window is empty the second time.
+# edit clearing flags across many bugs). Send advances a bug's lastdiffed
+# only once all its mail is out, so a retry after a failure re-mails that
+# bug's recipients: callers queue one bug per job.
 sub process_job {
   my ($class, $arg) = @_;
   my $changer = Bugzilla::User->new($arg->{changer_id});
