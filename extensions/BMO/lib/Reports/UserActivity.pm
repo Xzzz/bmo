@@ -115,7 +115,9 @@ sub report {
     }
 
     # Flag changes are in flag_activity, older ones in bugs_activity.
-    my $flag_newer = Bugzilla::FlagActivity->newer_than_bugs_activity_sql('fsa');
+    my $flag_newer   = Bugzilla::FlagActivity->newer_than_bugs_activity_sql('fsa');
+    my $flag_last    = Bugzilla::FlagActivity->last_of_request_sql('fsa');
+    my $flag_prev_id = Bugzilla::FlagActivity->previous_id_sql('fsa');
     my $query = "
         SELECT
                    fielddefs.name,
@@ -171,14 +173,14 @@ sub report {
          LEFT JOIN profiles req
                 ON req.userid = fsa.requestee_id
          LEFT JOIN flag_activity prev
-                ON prev.id = (SELECT MAX(p2.id) FROM flag_activity p2
-                               WHERE p2.flag_id = fsa.flag_id AND p2.id < fsa.id)
+                ON prev.id = $flag_prev_id
          LEFT JOIN profiles preq
                 ON preq.userid = prev.requestee_id
              WHERE profiles.login_name IN ($who_bits)
                    AND CONVERT_TZ(fsa.flag_when, 'UTC', 'America/Los_Angeles') >= ?
                    AND CONVERT_TZ(fsa.flag_when, 'UTC', 'America/Los_Angeles') <= ?
                    AND $flag_newer
+                   AND $flag_last
                    $flag_activity_where
 
         UNION ALL

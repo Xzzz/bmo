@@ -32,14 +32,16 @@ my $dbh = Bugzilla->dbh;
 
 my $setter = create_user('setter@bmo.test', '*');
 my $alice  = create_user('alice@bmo.test',  '*');
-create_user('bob@bmo.test', '*');
+my $bob    = create_user('bob@bmo.test',    '*');
 
-my $bug_id = create_bug(
-  short_desc  => 'Flag history test bug',
-  comment     => 'Bug for the flag_activity history tests',
-  bug_type    => 'defect',
-  assigned_to => 'nobody@mozilla.org',
-)->id;
+sub new_bug {
+  return create_bug(
+    short_desc  => shift,
+    comment     => 'Bug for the flag_activity history tests',
+    bug_type    => 'defect',
+    assigned_to => 'nobody@mozilla.org',
+  )->id;
+}
 
 my ($fieldid)
   = $dbh->selectrow_array(
@@ -48,7 +50,7 @@ my ($review_id)
   = $dbh->selectrow_array("SELECT id FROM flagtypes WHERE name = 'review'");
 
 sub add_flag_activity {
-  my ($when, $flag_id, $who, $requestee_id, $status) = @_;
+  my ($bug_id, $when, $flag_id, $who, $requestee_id, $status) = @_;
   $dbh->do(
     'INSERT INTO flag_activity
        (flag_when, type_id, flag_id, setter_id, who, requestee_id, bug_id,
@@ -58,7 +60,29 @@ sub add_flag_activity {
   );
 }
 
+# [who, removed, added] of the flag changes in bug history and in bugmail.
+sub flag_changes {
+  my ($bug_id) = @_;
+
+  my ($operations) = Bugzilla::Bug::GetBugActivity($bug_id);
+  my @history = map {
+    my $who = $_->{who};
+    map { [$who, $_->{removed}, $_->{added}] }
+      grep { $_->{fieldname} eq 'flagtypes.name' } @{$_->{changes}}
+  } @$operations;
+
+  $dbh->do('UPDATE bugs SET lastdiffed = NULL WHERE bug_id = ?',
+    undef, $bug_id);
+  my ($diffs) = Bugzilla::BugMail::_get_diffs(Bugzilla::Bug->new($bug_id),
+    '2026-12-31 00:00:00', {});
+  my @mail = map { [$_->{who}->login, $_->{old}, $_->{new}] }
+    grep { $_->{field_name} eq 'flagtypes.name' } @$diffs;
+
+  return (\@history, \@mail);
+}
+
 # Legacy changes, only in bugs_activity.
+my $legacy_bug = new_bug('legacy');
 for my $row (
   ['2020-01-01 10:00:00', '',                      'review?(bob@bmo.test)'],
   ['2020-01-02 10:00:00', 'review?(bob@bmo.test)', ''],
@@ -67,36 +91,42 @@ for my $row (
 {
   $dbh->do(
     'INSERT INTO bugs_activity (bug_id, who, bug_when, fieldid, removed, added)
-     VALUES (?, ?, ?, ?, ?, ?)', undef, $bug_id, $setter->id, $row->[0],
+     VALUES (?, ?, ?, ?, ?, ?)', undef, $legacy_bug, $setter->id, $row->[0],
     $fieldid, $row->[1], $row->[2]
   );
 }
 
 # The last legacy change was also written to flag_activity, then the flag
 # changed again once only flag_activity was written.
-add_flag_activity('2020-01-03 10:00:00', 42, $setter, undef, '+');
-add_flag_activity('2026-01-01 10:00:00', 42, $alice,  undef, '-');
+add_flag_activity($legacy_bug, '2020-01-03 10:00:00', 42, $setter, undef, '+');
+add_flag_activity($legacy_bug, '2026-01-01 10:00:00', 42, $alice,  undef, '-');
 
-my @expected = (
+my $expected = [
   ['setter@bmo.test', '',                      'review?(bob@bmo.test)'],
   ['setter@bmo.test', 'review?(bob@bmo.test)', ''],
   ['setter@bmo.test', '',                      'review+'],
   ['alice@bmo.test',  'review+',               'review-'],
-);
+];
+my ($history, $mail) = flag_changes($legacy_bug);
+is($history, $expected, 'history: each flag change once, with old value');
+is($mail,    $expected, 'bugmail: each flag change once, with old value');
 
-my ($operations) = Bugzilla::Bug::GetBugActivity($bug_id);
-my @history = map {
-  my $who = $_->{who};
-  map { [$who, $_->{removed}, $_->{added}] }
-    grep { $_->{fieldname} eq 'flagtypes.name' } @{$_->{changes}}
-} @$operations;
-is(\@history, \@expected, 'history: each flag change once, with old value');
+# A flag created and updated in one request has two rows in the same second:
+# history shows the request's net change, like bugs_activity did.
+my $same_second_bug = new_bug('same second');
+add_flag_activity($same_second_bug, '2026-02-01 10:00:00', 43, $alice, $bob->id,
+  '?');
+add_flag_activity($same_second_bug, '2026-02-01 10:00:00', 43, $alice, undef,
+  '+');
+add_flag_activity($same_second_bug, '2026-02-02 10:00:00', 43, $setter, undef,
+  '-');
 
-$dbh->do('UPDATE bugs SET lastdiffed = NULL WHERE bug_id = ?', undef, $bug_id);
-my ($diffs) = Bugzilla::BugMail::_get_diffs(Bugzilla::Bug->new($bug_id),
-  '2026-12-31 00:00:00', {});
-my @mail = map { [$_->{who}->login, $_->{old}, $_->{new}] }
-  grep { $_->{field_name} eq 'flagtypes.name' } @$diffs;
-is(\@mail, \@expected, 'bugmail: each flag change once, with old value');
+$expected = [
+  ['alice@bmo.test',  '',        'review+'],
+  ['setter@bmo.test', 'review+', 'review-'],
+];
+($history, $mail) = flag_changes($same_second_bug);
+is($history, $expected, 'history: one net change per request');
+is($mail,    $expected, 'bugmail: one net change per request');
 
 done_testing;

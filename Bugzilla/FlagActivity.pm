@@ -99,6 +99,32 @@ sub newer_than_bugs_activity_sql {
             '1970-01-01')";
 }
 
+# A flag created and updated in one request has several rows with the same
+# flag_when and who. History shows the request's net change, like
+# bugs_activity did: only its last row, compared with the flag's last row
+# before the request. Rows are picked by id, which orders same-second rows.
+
+# SQL condition on flag_activity row $alias: true for the request's last row.
+sub last_of_request_sql {
+  my ($class, $alias) = @_;
+  return "NOT EXISTS (
+            SELECT 1 FROM flag_activity next_fa
+             WHERE next_fa.flag_id = $alias.flag_id
+                   AND next_fa.flag_when = $alias.flag_when
+                   AND next_fa.who = $alias.who
+                   AND next_fa.id > $alias.id)";
+}
+
+# SQL subquery: the id of the flag's last row before $alias's request.
+sub previous_id_sql {
+  my ($class, $alias) = @_;
+  return "(SELECT MAX(prev_fa.id) FROM flag_activity prev_fa
+            WHERE prev_fa.flag_id = $alias.flag_id
+                  AND prev_fa.id < $alias.id
+                  AND NOT (prev_fa.flag_when = $alias.flag_when
+                           AND prev_fa.who = $alias.who))";
+}
+
 sub type {
   my ($self) = @_;
   return $self->{type}

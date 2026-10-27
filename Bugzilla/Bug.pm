@@ -4932,10 +4932,12 @@ sub GetBugActivity {
 
   my $flag_bug_when = $dbh->sql_date_format('fsa.flag_when', '%Y-%m-%d %H:%i:%s');
   my $flag_newer    = Bugzilla::FlagActivity->newer_than_bugs_activity_sql('fsa');
+  my $flag_last     = Bugzilla::FlagActivity->last_of_request_sql('fsa');
+  my $flag_prev_id  = Bugzilla::FlagActivity->previous_id_sql('fsa');
   $query .= "
         UNION ALL
         SELECT 'flagtypes.name' AS field_name,
-               NULL AS activity_id,
+               fsa.id AS activity_id,
                fsa.attachment_id AS attach_id,
                $flag_bug_when AS bug_when,
                CASE WHEN prev.id IS NULL THEN ''
@@ -4954,17 +4956,12 @@ sub GetBugActivity {
           JOIN flagtypes ft ON ft.id = fsa.type_id
           JOIN profiles changer ON changer.userid = fsa.who
           LEFT JOIN profiles req ON req.userid = fsa.requestee_id
-          LEFT JOIN flag_activity prev
-                 ON prev.flag_id = fsa.flag_id
-                AND prev.flag_when = (
-                      SELECT MAX(p2.flag_when)
-                        FROM flag_activity p2
-                       WHERE p2.flag_id = fsa.flag_id
-                         AND p2.flag_when < fsa.flag_when)
+          LEFT JOIN flag_activity prev ON prev.id = $flag_prev_id
           LEFT JOIN profiles preq ON preq.userid = prev.requestee_id
           $flag_suppjoins
          WHERE fsa.bug_id = ?
                AND $flag_newer
+               AND $flag_last
                $flag_attachpart
                $flag_suppwhere
       ";

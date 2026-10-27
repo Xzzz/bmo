@@ -707,7 +707,9 @@ sub _get_diffs {
   my $dbh = Bugzilla->dbh;
 
   my @args       = ($bug->id);
-  my $flag_newer = Bugzilla::FlagActivity->newer_than_bugs_activity_sql('fsa');
+  my $flag_newer   = Bugzilla::FlagActivity->newer_than_bugs_activity_sql('fsa');
+  my $flag_last    = Bugzilla::FlagActivity->last_of_request_sql('fsa');
+  my $flag_prev_id = Bugzilla::FlagActivity->previous_id_sql('fsa');
 
   # If lastdiffed is NULL, then we don't limit the search on time.
   my $when_restriction      = '';
@@ -723,7 +725,8 @@ sub _get_diffs {
                    fielddefs.description AS field_desc,
                    bugs_activity.bug_when, bugs_activity.removed AS old,
                    bugs_activity.added AS new, bugs_activity.attach_id,
-                   bugs_activity.comment_id, bugs_activity.who
+                   bugs_activity.comment_id, bugs_activity.who,
+                   bugs_activity.id AS activity_id
               FROM bugs_activity
         INNER JOIN fielddefs
                 ON fielddefs.id = bugs_activity.fieldid
@@ -745,22 +748,18 @@ sub _get_diffs {
                END AS new,
                fsa.attachment_id AS attach_id,
                NULL AS comment_id,
-               fsa.who AS who
+               fsa.who AS who,
+               fsa.id AS activity_id
           FROM flag_activity fsa
           JOIN flagtypes ft ON ft.id = fsa.type_id
           LEFT JOIN profiles req ON req.userid = fsa.requestee_id
-          LEFT JOIN flag_activity prev
-                 ON prev.flag_id = fsa.flag_id
-                AND prev.flag_when = (
-                      SELECT MAX(p2.flag_when)
-                        FROM flag_activity p2
-                       WHERE p2.flag_id = fsa.flag_id
-                         AND p2.flag_when < fsa.flag_when)
+          LEFT JOIN flag_activity prev ON prev.id = $flag_prev_id
           LEFT JOIN profiles preq ON preq.userid = prev.requestee_id
          WHERE fsa.bug_id = ?
                AND $flag_newer
+               AND $flag_last
                $flag_when_restriction
-          ORDER BY bug_when, field_desc", {Slice => {}},
+          ORDER BY bug_when, field_desc, activity_id", {Slice => {}},
     @args, $bug->id, ($bug->lastdiffed ? ($bug->lastdiffed, $end) : ())
   );
   my $referenced_bugs = [];
