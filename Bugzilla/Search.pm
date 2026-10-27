@@ -3754,8 +3754,7 @@ sub _changed_security_check {
 }
 
 # Flag changes are recorded in flag_activity. Older changes are only in
-# bugs_activity, so match either. flag_id 0 rows are backfilled copies of
-# bugs_activity rows and are skipped.
+# bugs_activity, so match either.
 sub _flagtypes_changed {
   my ($self, $args) = @_;
   my $dbh = Bugzilla->dbh;
@@ -3767,7 +3766,7 @@ sub _flagtypes_changed {
   my $legacy_term = $args->{term};
 
   my $fa    = "flag_act_$chart_id";
-  my @where = ("$fa.bug_id = $bugs_table.bug_id", "$fa.flag_id != 0");
+  my @where = ("$fa.bug_id = $bugs_table.bug_id");
 
   if ($operator =~ /^changed(before|after)$/) {
     my $sql_operator = $1 eq 'before' ? '<=' : '>=';

@@ -17,6 +17,7 @@ use Bugzilla::Constants;
 use Bugzilla::Util;
 use Bugzilla::Bug;
 use Bugzilla::Comment;
+use Bugzilla::FlagActivity;
 use Bugzilla::Logging;
 use Bugzilla::Mailer;
 use Bugzilla::Hook;
@@ -705,7 +706,8 @@ sub _get_diffs {
   my ($bug, $end, $user_cache) = @_;
   my $dbh = Bugzilla->dbh;
 
-  my @args = ($bug->id);
+  my @args       = ($bug->id);
+  my $flag_newer = Bugzilla::FlagActivity->newer_than_bugs_activity_sql('fsa');
 
   # If lastdiffed is NULL, then we don't limit the search on time.
   my $when_restriction      = '';
@@ -727,7 +729,6 @@ sub _get_diffs {
                 ON fielddefs.id = bugs_activity.fieldid
              WHERE bugs_activity.bug_id = ?
                    $when_restriction
-                   AND fielddefs.name != 'flagtypes.name'
         UNION ALL
         SELECT 'flagtypes.name' AS field_name,
                (SELECT description FROM fielddefs WHERE name = 'flagtypes.name') AS field_desc,
@@ -749,8 +750,7 @@ sub _get_diffs {
           JOIN flagtypes ft ON ft.id = fsa.type_id
           LEFT JOIN profiles req ON req.userid = fsa.requestee_id
           LEFT JOIN flag_activity prev
-                 ON fsa.flag_id != 0
-                AND prev.flag_id = fsa.flag_id
+                 ON prev.flag_id = fsa.flag_id
                 AND prev.flag_when = (
                       SELECT MAX(p2.flag_when)
                         FROM flag_activity p2
@@ -758,6 +758,7 @@ sub _get_diffs {
                          AND p2.flag_when < fsa.flag_when)
           LEFT JOIN profiles preq ON preq.userid = prev.requestee_id
          WHERE fsa.bug_id = ?
+               AND $flag_newer
                $flag_when_restriction
           ORDER BY bug_when, field_desc", {Slice => {}},
     @args, $bug->id, ($bug->lastdiffed ? ($bug->lastdiffed, $end) : ())

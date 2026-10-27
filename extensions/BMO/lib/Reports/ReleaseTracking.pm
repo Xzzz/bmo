@@ -205,7 +205,6 @@ sub report {
       my @range = ($q->{start_date} . ' 00:00:00', $q->{end_date} . ' 23:59:59');
 
       # Flag changes are in flag_activity; older ones only in bugs_activity.
-      # flag_id 0 rows are backfilled copies of bugs_activity rows.
       push @where, "(EXISTS (
           SELECT 1 FROM bugs_activity a
            WHERE a.bug_id = b.bug_id AND a.fieldid = ?
@@ -213,7 +212,7 @@ sub report {
                  AND a.added LIKE ?)
         OR EXISTS (
           SELECT 1 FROM flag_activity fa
-           WHERE fa.bug_id = b.bug_id AND fa.flag_id != 0
+           WHERE fa.bug_id = b.bug_id
                  AND fa.type_id = ? AND fa.status = ?
                  AND CONVERT_TZ(fa.flag_when, 'UTC', 'America/Los_Angeles') BETWEEN ? AND ?))";
       push @params, $q->{field_id}, @range,

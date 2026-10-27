@@ -85,6 +85,20 @@ sub requestee_id  { return $_[0]->{requestee_id} }
 sub attachment_id { return $_[0]->{attachment_id} }
 sub status        { return $_[0]->{status} }
 
+# SQL condition on flag_activity row $alias: true when it is newer than the
+# bug's last flag change in bugs_activity. Older flag changes are read from
+# bugs_activity, which has them all; flag_activity has only some of them,
+# written to both tables, which must not be listed twice.
+sub newer_than_bugs_activity_sql {
+  my ($class, $alias) = @_;
+  return "$alias.flag_when > COALESCE(
+            (SELECT MAX(ba.bug_when) FROM bugs_activity ba
+              WHERE ba.bug_id = $alias.bug_id
+                    AND ba.fieldid = (SELECT id FROM fielddefs
+                                       WHERE name = 'flagtypes.name')),
+            '1970-01-01')";
+}
+
 sub type {
   my ($self) = @_;
   return $self->{type}

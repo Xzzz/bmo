@@ -12,6 +12,7 @@ use strict;
 use warnings;
 
 use Bugzilla::Error;
+use Bugzilla::FlagActivity;
 use Bugzilla::User;
 use Bugzilla::Util qw(trim);
 use Bugzilla::Util::DateTime;
@@ -113,9 +114,8 @@ sub report {
       $comment_filter = 'AND longdescs.isprivate = 0';
     }
 
-    # Flag changes are in flag_activity. Older ones are only in bugs_activity,
-    # so for each bug only flag_activity rows after its last bugs_activity flag
-    # row are used.
+    # Flag changes are in flag_activity, older ones in bugs_activity.
+    my $flag_newer = Bugzilla::FlagActivity->newer_than_bugs_activity_sql('fsa');
     my $query = "
         SELECT
                    fielddefs.name,
@@ -172,19 +172,13 @@ sub report {
                 ON req.userid = fsa.requestee_id
          LEFT JOIN flag_activity prev
                 ON prev.id = (SELECT MAX(p2.id) FROM flag_activity p2
-                               WHERE p2.flag_id = fsa.flag_id AND p2.id < fsa.id
-                                     AND fsa.flag_id != 0)
+                               WHERE p2.flag_id = fsa.flag_id AND p2.id < fsa.id)
          LEFT JOIN profiles preq
                 ON preq.userid = prev.requestee_id
              WHERE profiles.login_name IN ($who_bits)
                    AND CONVERT_TZ(fsa.flag_when, 'UTC', 'America/Los_Angeles') >= ?
                    AND CONVERT_TZ(fsa.flag_when, 'UTC', 'America/Los_Angeles') <= ?
-                   AND fsa.flag_when > COALESCE(
-                         (SELECT MAX(ba.bug_when) FROM bugs_activity ba
-                           WHERE ba.bug_id = fsa.bug_id
-                                 AND ba.fieldid = (SELECT id FROM fielddefs
-                                                    WHERE name = 'flagtypes.name')),
-                         '1970-01-01')
+                   AND $flag_newer
                    $flag_activity_where
 
         UNION ALL
