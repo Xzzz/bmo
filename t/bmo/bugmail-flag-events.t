@@ -266,6 +266,33 @@ sub sent_mails {
   ok($raw->{$raw_cc},           'cc_list address with no account takes the raw mail path');
 }
 
+# The cc_list address with no account gets the new public comments, as with
+# the old flag mail (e.g. the uplift request text on approval-* requests).
+{
+  my $bug = new_bug();
+  $bug->add_comment('Uplift request: public reasons');
+  $bug->add_comment('Uplift request: private reasons');
+  $bug->update();
+
+  # The test user can't mark comments private.
+  $dbh->do('UPDATE longdescs SET isprivate = 1 WHERE bug_id = ? AND thetext = ?',
+    undef, $bug->id, 'Uplift request: private reasons');
+  $dbh->do('UPDATE bugs SET lastdiffed = ? WHERE bug_id = ?',
+    undef, $window_start, $bug->id);
+  add_activity($bug, $next_flag_id++, '2000-01-01 00:00:10', '?', $requester);
+
+  my @raw;
+  no warnings 'redefine';
+  local *Bugzilla::BugMail::MessageToMTA = sub {
+    push @raw, $_[0] if $_[0] =~ /^To: \Q$raw_cc\E$/m;
+  };
+  Bugzilla::BugMail::Send($bug->id, {changer => $requester});
+
+  is(scalar @raw, 1, 'the cc_list address with no account is mailed');
+  like($raw[0], qr/Uplift request: public reasons/, 'with the public comments');
+  unlike($raw[0], qr/private reasons/, 'but not the private ones');
+}
+
 # A flag type edit queues one bugmail job per bug it touched.
 {
   my @jobs;

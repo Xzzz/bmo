@@ -477,7 +477,10 @@ sub Send {
     }
   }
 
-  _send_flag_type_cc_raw_mail($bug, $flag_type_cc_raw, $date);
+  # An address with no account is no insider, so as with the old flag mail
+  # it gets the public comments only.
+  _send_flag_type_cc_raw_mail($bug, $flag_type_cc_raw, $date,
+    [grep { !$_->is_private } @$comments]);
 
   # When sending bugmail about a blocker being reopened or resolved,
   # we say nothing about changes in the bug being blocked, so we must
@@ -1009,10 +1012,11 @@ sub _get_flag_type_cc {
 
 # cc_list can list addresses with no Bugzilla account. The normal recipient
 # pipeline above is keyed on user id throughout (wants_bug_mail, language
-# prefs, mailer-queue enqueue/dequeue...), so these get a minimal, separate
-# notice instead of going through it.
+# prefs, mailer-queue enqueue/dequeue...), so these get a separate notice
+# instead of going through it: the flag events and the new comments, like the
+# old flag mail.
 sub _send_flag_type_cc_raw_mail {
-  my ($bug, $raw_addresses, $date) = @_;
+  my ($bug, $raw_addresses, $date, $comments) = @_;
   return unless %$raw_addresses;
 
   my $lang     = Bugzilla::User->new()->setting('lang');
@@ -1027,6 +1031,7 @@ sub _send_flag_type_cc_raw_mail {
         bug             => $bug,
         date            => $date,
         flag_events     => $raw_addresses->{$to},
+        new_comments    => $comments,
         threadingmarker => build_thread_marker($bug->id, 0, 0),
       },
       \$message
