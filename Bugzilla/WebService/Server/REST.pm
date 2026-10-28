@@ -24,8 +24,6 @@ use Bugzilla::WebService::Util qw(fix_credentials set_rest_cors_headers taint_da
 # Load resource modules
 use Bugzilla::WebService::Server::REST::Resources::Bug;
 use Bugzilla::WebService::Server::REST::Resources::Bugzilla;
-use Bugzilla::WebService::Server::REST::Resources::Group;
-use Bugzilla::WebService::Server::REST::Resources::User;
 
 use List::MoreUtils qw(uniq);
 use Scalar::Util qw(blessed reftype);
@@ -128,7 +126,8 @@ sub response {
     $result = $json_data->{error};
     $result->{error} = $self->type('boolean', 1);
 
-    $result->{documentation} = Bugzilla->params->{docs_urlbase} . "api/";
+    $result->{documentation}
+      = Bugzilla->localconfig->urlbase . 'docs/en/md/api/index.md';
     delete $result->{'name'};    # Remove JSONRPCError
   }
   elsif (exists $json_data->{result}) {

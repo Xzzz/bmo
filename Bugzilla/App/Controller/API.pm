@@ -81,10 +81,10 @@ sub _load_api_module {
   my ($routes, $module) = @_;
   try {
     require_module($module);
-    my $controller = $module->new;
-    if ($controller->can('setup_routes')) {
-      $controller->setup_routes($routes);
-    }
+
+    # Helper modules such as Bugzilla::API::V1::Util live in the same
+    # namespace but are not controllers: nothing to instantiate or route.
+    $module->new->setup_routes($routes) if $module->can('setup_routes');
   }
   catch {
     WARN("$module could not be loaded: $_");
