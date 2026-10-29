@@ -15,6 +15,7 @@ use List::MoreUtils qw(uniq);
 use Types::Standard -all;
 
 use Bugzilla::API::V1::Util;
+use Bugzilla::App::Plugin::Error;
 use Bugzilla::Bug;
 use Bugzilla::Comment;
 use Bugzilla::Constants;
@@ -25,7 +26,6 @@ use Bugzilla::Search::Quicksearch;
 use Bugzilla::Token qw(issue_hash_token);
 use Bugzilla::Util qw(remote_ip trim);
 use Bugzilla::WebService;
-use Bugzilla::WebService::Constants;
 use Bugzilla::WebService::Server;
 use Bugzilla::WebService::Util qw(extract_flags filter filter_wants
   merge_request_params strip_request_params validate);
@@ -659,14 +659,9 @@ sub _fault {
   my ($type, $error, $vars) = delete @$stash{qw(type error vars)};
   die $exception if !$error;
 
-  my $message;
-  my $template = Bugzilla->template;
-  $template->process("global/$type-error.html.tmpl", {%$vars, error => $error},
-    \$message)
-    || die $template->error();
-
-  my $code = WS_ERROR_CODE->{$error}
-    || ($type eq 'code' ? ERROR_UNKNOWN_FATAL : ERROR_UNKNOWN_TRANSIENT);
+  my ($message, $code)
+    = Bugzilla::App::Plugin::Error::error_message_and_code($type, $error,
+    $vars || {});
 
   return {
     id          => $bug_id,
