@@ -4558,29 +4558,24 @@ sub delta_ts_non_bot {
     }
   }
 
-  # Grab the latest timestamp for comments and bug changes that was not made by
-  # one of the accounts in the bot skip list. Return the greatest of the two values.
+  # Grab the latest timestamp for comments, bug changes and flag changes that
+  # was not made by one of the accounts in the bot skip list.
   if (my $bot_ids_string = $cache->{bot_ids_string}) {
-    my %time_map;
-    my @result = $dbh->selectrow_array(
-      "SELECT bug_when, UNIX_TIMESTAMP(bug_when)
-         FROM bugs_activity
-        WHERE bug_id = ? AND who NOT IN ($bot_ids_string)
-        ORDER BY bug_when DESC LIMIT 1",
-      undef, $self->id
+    ($self->{delta_ts_non_bot}) = $dbh->selectrow_array(
+      "SELECT MAX(bug_when)
+         FROM (SELECT MAX(bug_when) AS bug_when
+                 FROM bugs_activity
+                WHERE bug_id = ? AND who NOT IN ($bot_ids_string)
+               UNION ALL
+               SELECT MAX(bug_when) AS bug_when
+                 FROM longdescs
+                WHERE bug_id = ? AND who NOT IN ($bot_ids_string)
+               UNION ALL
+               SELECT MAX(flag_when) AS bug_when
+                 FROM flag_activity
+                WHERE bug_id = ? AND who NOT IN ($bot_ids_string)) tmp",
+      undef, ($self->id) x 3
     );
-    $time_map{$result[1]} = $result[0] if @result;
-    @result = $dbh->selectrow_array(
-      "SELECT bug_when, UNIX_TIMESTAMP(bug_when)
-         FROM longdescs
-        WHERE bug_id = ? AND who NOT IN ($bot_ids_string)
-        ORDER BY bug_when DESC LIMIT 1",
-      undef, $self->id
-    );
-    $time_map{$result[1]} = $result[0] if @result;
-
-    my $max_epoch = max keys %time_map;
-    $self->{delta_ts_non_bot} = $time_map{$max_epoch};
   }
 
   return $self->{delta_ts_non_bot};

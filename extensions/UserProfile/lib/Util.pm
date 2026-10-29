@@ -118,7 +118,7 @@ EOF
 EOF
 
   # bugs touched
-  _update_statistics($statistics, 'touched', [$user_id, $user_id], <<EOF);
+  _update_statistics($statistics, 'touched', [($user_id) x 3], <<EOF);
     SELECT COUNT(*) FROM (
         SELECT bugs_activity.bug_id
           FROM bugs_activity
@@ -129,6 +129,11 @@ EOF
           FROM longdescs
          WHERE who = ?
          GROUP BY longdescs.bug_id
+        UNION
+        SELECT flag_activity.bug_id
+          FROM flag_activity
+         WHERE who = ?
+         GROUP BY flag_activity.bug_id
     ) temp
 EOF
 
@@ -169,8 +174,8 @@ sub tag_for_recount_from_bug {
   my $dbh = Bugzilla->dbh;
 
   # get a list of all users associated with this bug
-  my $user_ids
-    = $dbh->selectcol_arrayref(<<EOF, undef, $bug_id, _field_id('cc'), $bug_id);
+  my @values   = ($bug_id, _field_id('cc'), $bug_id, $bug_id);
+  my $user_ids = $dbh->selectcol_arrayref(<<EOF, undef, @values);
     SELECT DISTINCT user_id
       FROM (
            SELECT DISTINCT who AS user_id
@@ -180,6 +185,10 @@ sub tag_for_recount_from_bug {
             UNION ALL
            SELECT DISTINCT who AS user_id
              FROM longdescs
+            WHERE bug_id = ?
+            UNION ALL
+           SELECT DISTINCT who AS user_id
+             FROM flag_activity
             WHERE bug_id = ?
     ) tmp
 EOF
@@ -195,10 +204,10 @@ EOF
 
 sub last_user_activity {
 
-  # last comment, or change to a bug (excluding CC changes)
+  # last comment, or change to a bug (excluding CC changes) or to its flags
   my ($user_id) = @_;
   return Bugzilla->dbh->selectrow_array(
-    <<EOF, undef, $user_id, $user_id, _field_id('cc'));
+    <<EOF, undef, $user_id, $user_id, _field_id('cc'), $user_id);
     SELECT MAX(bug_when)
       FROM (
            SELECT MAX(bug_when) AS bug_when
@@ -209,6 +218,10 @@ sub last_user_activity {
              FROM bugs_activity
             WHERE who = ?
                   AND fieldid <> ?
+            UNION ALL
+           SELECT MAX(flag_when) AS bug_when
+             FROM flag_activity
+            WHERE who = ?
            ) tmp
 EOF
 }
