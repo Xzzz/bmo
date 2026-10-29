@@ -10,8 +10,10 @@ package Bugzilla::API::V1::Bug;
 use 5.10.1;
 use Mojo::Base qw( Mojolicious::Controller );
 
+use Digest::MD5 qw(md5_base64);
 use List::Util qw(max);
 use List::MoreUtils qw(uniq);
+use Storable qw(freeze);
 use Types::Standard -all;
 
 use Bugzilla::API::V1::Util;
@@ -119,6 +121,8 @@ sub get {
   $self->_preload_bugs_comment_edit_info(\@bugs, $params);
   my @hashes = map { $self->_bug_to_hash($_, $params) } @bugs;
 
+  # Before the update tokens, which change on every request.
+  my $etag = _etag({bugs => \@hashes, faults => \@faults});
   $self->_add_update_tokens($params, \@bugs, \@hashes);
 
   if ($user->id) {
@@ -136,7 +140,7 @@ sub get {
   Bugzilla::Hook::process('webservice_bug_get',
     {webservice => $self, user => $user, params => $params, bug_data => \@hashes,});
 
-  return $self->render(json => {bugs => \@hashes, faults => \@faults});
+  return $self->_render_with_etag({bugs => \@hashes, faults => \@faults}, $etag);
 }
 
 # GET /bug/<id>/history
@@ -192,7 +196,7 @@ sub history {
     };
   }
 
-  return $self->render(json => {bugs => \@return});
+  return $self->_render_with_etag({bugs => \@return});
 }
 
 # GET /bug
@@ -345,11 +349,11 @@ sub search {
 
   # BMO if the caller only wants the count, that's all we need to return
   if ($params->{count_only}) {
-    return $self->render(json => {bug_count => $self->type('int', $data)});
+    return $self->_render_with_etag({bug_count => $self->type('int', $data)});
   }
 
   if (!scalar @$data) {
-    return $self->render(json => {bugs => []});
+    return $self->_render_with_etag({bugs => []});
   }
 
   # Search.pm won't return bugs that the user shouldn't see so no filtering
@@ -361,7 +365,7 @@ sub search {
   $self->_preload_bugs_comment_edit_info(\@bugs, $params);
   @bugs = map { $self->_bug_to_hash($_, $params) } @bugs;
 
-  return $self->render(json => {bugs => \@bugs});
+  return $self->_render_with_etag({bugs => \@bugs});
 }
 
 # GET /bug/possible_duplicates
@@ -647,6 +651,20 @@ sub _convert_dates {
 sub _datetime_custom_fields {
   return map { $_->name } grep { $_->type == FIELD_TYPE_DATETIME }
     Bugzilla->active_custom_fields({skip_extensions => 1});
+}
+
+# Clients send back the ETag of get, search and history to know if the bugs
+# changed, as with the legacy REST server.
+sub _etag {
+  my ($data) = @_;
+  local $Storable::canonical = 1;
+  return md5_base64(freeze($data));
+}
+
+sub _render_with_etag {
+  my ($self, $json, $etag) = @_;
+  return $self->rendered(304) if $self->is_fresh(etag => $etag // _etag($json));
+  return $self->render(json => $json);
 }
 
 # A permissive get's entry for a bug that can't be returned, from the error

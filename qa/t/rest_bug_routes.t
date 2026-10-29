@@ -10,7 +10,8 @@
 # Tests for the REST bug routes not covered by the  #
 # per-method tests: Bug.get permissive mode,        #
 # GET /rest/bug/, quicksearch, the                  #
-# Bug.possible_duplicates param checks and OPTIONS  #
+# Bug.possible_duplicates param checks, ETag and    #
+# OPTIONS                                           #
 #####################################################
 
 use 5.10.1;
@@ -84,6 +85,19 @@ $t->get_ok($url
     $headers)
   ->status_is(200)
   ->json_has('/bugs');
+
+# Get, search and history send an ETag, and answer 304 when the client sends
+# it back unchanged. The bug get ETag doesn't change with the update tokens.
+foreach my $path ('rest/bug/public_bug', 'rest/bug?id=public_bug',
+  'rest/bug/public_bug/history')
+{
+  $t->get_ok($url . $path => $headers)->status_is(200)->header_like(ETag => qr/^"/);
+  my $etag = $t->tx->res->headers->etag;
+  $t->get_ok($url . $path => {%$headers, 'If-None-Match' => $etag})
+    ->status_is(304)->content_is('');
+  $t->get_ok($url . $path => {%$headers, 'If-None-Match' => '"stale"'})
+    ->status_is(200);
+}
 
 # OPTIONS lists the methods of each route.
 $t->options_ok($url . 'rest/bug')->status_is(200)
