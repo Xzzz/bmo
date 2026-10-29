@@ -93,4 +93,8 @@ $t->options_ok($url . 'rest/bug/public_bug')->status_is(200)
 $t->options_ok($url . 'rest/bug/public_bug/history')->status_is(200)
   ->header_is(Allow => 'GET');
 
+# /bug/#id doesn't match the deeper routes of the other bug controllers.
+$t->options_ok($url . 'rest/bug/comment/render')->status_is(200)
+  ->header_is(Allow => 'POST');
+
 done_testing();
