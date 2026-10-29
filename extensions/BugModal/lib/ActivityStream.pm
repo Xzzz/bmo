@@ -108,20 +108,31 @@ sub find_activity_id_for_flag {
       undef, $flag_id
     );
 
+    # flag_activity only logged review, feedback and needinfo before, so other
+    # flags may have no row: match them as before, on the setter, the
+    # modification date and the flag type name.
+    my $flagtype_name;
+    if (!$flag_when) {
+      ($flag_when, $who, $flagtype_name)
+        = ($flag->modification_date, $flag->setter->id, $flag->type->name);
+    }
+
     SEARCH: foreach my $change_set (reverse @$stream) {
       foreach my $activity (@{$change_set->{activity}}) {
-        next unless $flag_when
-          && $activity->{who}->id == $who
-          && $activity->{when} eq $flag_when;
+        next
+          unless $activity->{who}->id == $who && $activity->{when} eq $flag_when;
         foreach my $change (@{$activity->{changes}}) {
           next unless $change->{fieldname} eq 'flagtypes.name';
+          next
+            if defined $flagtype_name
+            && $change->{flagtype_name} ne $flagtype_name;
           $self->{activity_cache}->{flag}->{$flag_id} = $change_set->{id};
           last SEARCH;
         }
       }
     }
 
-    # flag set during bug creation, or no flag_activity entry yet
+    # flag set during bug creation
     $self->{activity_cache}->{flag}->{$flag_id} //= 'c0';
   }
   return $self->{activity_cache}->{flag}->{$flag_id};
