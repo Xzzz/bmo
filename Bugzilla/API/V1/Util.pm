@@ -243,4 +243,15 @@ sub wants_collapsed_comments {
   return grep { $_ eq '_collapsed_comments' } @{$params->{include_fields} || []};
 }
 
+# include_fields and exclude_fields can be lists, comma or space separated, or
+# both: turn them into flat lists of field names.
+sub split_include_exclude {
+  my ($class, $params) = @_;
+  for my $name (qw(include_fields exclude_fields)) {
+    next if !exists $params->{$name};
+    $params->{$name} = [$params->{$name}] if !ref $params->{$name};
+    $params->{$name} = [map { split(/[\s,]+/) } @{$params->{$name}}];
+  }
+}
+
 1;

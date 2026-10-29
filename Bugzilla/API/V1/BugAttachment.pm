@@ -80,7 +80,7 @@ sub attachments {
     my $values = $self->every_param($name);
     $params->{$name} = $values if @$values;
   }
-  _split_include_exclude($params);
+  Bugzilla::API::V1::Util->split_include_exclude($params);
 
   # As on the legacy REST server, an id in the path is added to the ones from
   # the query string.
@@ -378,18 +378,9 @@ sub _request_params {
   # but a list of plain values (e.g. a hash of conditions) is invalid_params.
   (undef, $params) = validate($self, $params, 'ids');
   $params->{ids} //= [$self->stash('id') // $self->stash('attachment_id')];
-  _split_include_exclude($params);
+  Bugzilla::API::V1::Util->split_include_exclude($params);
 
   return ($params, undef);
-}
-
-sub _split_include_exclude {
-  my ($params) = @_;
-  for my $name (qw(include_fields exclude_fields)) {
-    next if !exists $params->{$name};
-    $params->{$name} = [$params->{$name}] if !ref $params->{$name};
-    $params->{$name} = [map { split(/[\s,]+/) } @{$params->{$name}}];
-  }
 }
 
 1;

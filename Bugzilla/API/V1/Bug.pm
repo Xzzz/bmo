@@ -620,11 +620,7 @@ sub _request_params {
     }
   }
 
-  for my $name (qw(include_fields exclude_fields)) {
-    next if !exists $params->{$name};
-    $params->{$name} = [$params->{$name}] if !ref $params->{$name};
-    $params->{$name} = [map { split(/[\s,]+/) } @{$params->{$name}}];
-  }
+  Bugzilla::API::V1::Util->split_include_exclude($params);
 
   Bugzilla->input_params($params);
   return ($params, 0);
