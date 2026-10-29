@@ -17,6 +17,7 @@ our @EXPORT = qw( update_statistics_by_user
   last_user_activity );
 
 use Bugzilla;
+use Bugzilla::FlagActivity;
 
 sub update_statistics_by_user {
   my ($user_id) = @_;
@@ -301,6 +302,18 @@ sub _activity_by_product {
            INNER JOIN bugs ON bugs.bug_id = bugs_activity.bug_id
            INNER JOIN products ON products.id = bugs.product_id
      WHERE who = ?
+     GROUP BY bugs.product_id
+EOF
+  map { $products{$_->{product}} += $_->{count} } @$rows;
+
+  # flag changes, skipping the older ones that are also in bugs_activity
+  my $newer = Bugzilla::FlagActivity->newer_than_bugs_activity_sql('fa');
+  $rows = $dbh->selectall_arrayref(<<EOF, {Slice => {}}, $user_id);
+    SELECT products.name AS product, count(*) AS count
+      FROM flag_activity fa
+           INNER JOIN bugs ON bugs.bug_id = fa.bug_id
+           INNER JOIN products ON products.id = bugs.product_id
+     WHERE fa.who = ? AND $newer
      GROUP BY bugs.product_id
 EOF
   map { $products{$_->{product}} += $_->{count} } @$rows;

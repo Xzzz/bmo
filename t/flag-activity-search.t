@@ -92,4 +92,41 @@ is(search(changedby => 'bob@bmo.test'), [$legacy_bug],
   'changedby bugs_activity');
 is(search(everchanged => ''), [$legacy_bug, $current_bug], 'everchanged');
 
+# Changes to any field include flag changes.
+sub search_anything {
+  my ($operator, $value) = @_;
+  my $search = Bugzilla::Search->new(
+    fields => ['bug_id'],
+    params => {f1 => 'anything', o1 => $operator, v1 => $value},
+  );
+  return [sort { $a <=> $b } map { $_->[0] } @{$search->data}];
+}
+is(search_anything(changedby => 'alice@bmo.test'), [$current_bug],
+  'anything changedby flag_activity');
+is(search_anything(changedby => 'bob@bmo.test'), [$legacy_bug],
+  'anything changedby bugs_activity');
+is(search_anything(changedafter => '2025-01-01'), [$current_bug],
+  'anything changedafter');
+
+# An assignee whose only recent changes are flag changes isn't idle.
+my $owned_bug = create_bug(
+  short_desc  => 'owned',
+  comment     => 'Flag search test bug',
+  bug_type    => 'defect',
+  assigned_to => 'alice@bmo.test',
+)->id;
+sub idle {
+  my ($operator) = @_;
+  my $search = Bugzilla::Search->new(
+    fields => ['bug_id'],
+    params => {
+      f1 => 'owner_idle_time', o1 => $operator,  v1 => '2025-12-01',
+      f2 => 'assigned_to',     o2 => 'equals',   v2 => 'alice@bmo.test',
+    },
+  );
+  return [map { $_->[0] } @{$search->data}];
+}
+is(idle('lessthan'),    [$owned_bug], 'owner_idle_time lessthan');
+is(idle('greaterthan'), [],           'owner_idle_time greaterthan');
+
 done_testing;

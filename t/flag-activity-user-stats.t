@@ -85,4 +85,23 @@ my ($touched) = $dbh->selectrow_array(
   undef, $human->id);
 is($touched, 1, 'a flag change counts as touching the bug');
 
+sub product_count {
+  return scalar $dbh->selectrow_array(
+    'SELECT SUM(count) FROM profiles_statistics_products WHERE user_id = ?',
+    undef, $human->id);
+}
+is(product_count(), 1, 'a flag change counts in the activity by product');
+
+# An older change is in both tables: count it once.
+my ($fieldid)
+  = $dbh->selectrow_array(
+  "SELECT id FROM fielddefs WHERE name = 'flagtypes.name'");
+$dbh->do(
+  'INSERT INTO bugs_activity (bug_id, who, bug_when, fieldid, removed, added)
+   VALUES (?, ?, ?, ?, ?, ?)', undef, $bug_id, $human->id,
+  '2099-01-01 10:00:00', $fieldid, '', 'needinfo?(bob@bmo.test)'
+);
+update_statistics_by_user($human->id);
+is(product_count(), 1, 'a change in both tables is counted once');
+
 done_testing;

@@ -3177,13 +3177,24 @@ sub _owner_idle_time_greater_less {
     extra => ["$act_table.bug_when > $quoted"]
   };
 
-  push(@$joins, $comments_join, $activity_join);
+  my $flag_table = "flag_$table";
+  my $flag_join  = {
+    table => 'flag_activity',
+    as    => $flag_table,
+    from  => 'assigned_to',
+    to    => 'who',
+    extra => ["$flag_table.flag_when > $quoted"]
+  };
+
+  push(@$joins, $comments_join, $activity_join, $flag_join);
 
   if ($operator =~ /greater/) {
-    $args->{term} = "$ld_table.who IS NULL AND $act_table.who IS NULL";
+    $args->{term}
+      = "$ld_table.who IS NULL AND $act_table.who IS NULL AND $flag_table.who IS NULL";
   }
   else {
-    $args->{term} = "($ld_table.who IS NOT NULL OR $act_table.who IS NOT NULL)";
+    $args->{term}
+      = "($ld_table.who IS NOT NULL OR $act_table.who IS NOT NULL OR $flag_table.who IS NOT NULL)";
   }
 }
 
@@ -3671,6 +3682,15 @@ sub _changedbefore_changedafter {
   $args->{term} = "$table.bug_when IS NOT NULL";
   $self->_changed_security_check($args, $join);
   push(@$joins, $join);
+
+  # Flag changes are in flag_activity.
+  if ($field eq 'anything') {
+    my $fa = "flag_act_$chart_id";
+    $args->{term} = "($args->{term} OR "
+      . $self->_flag_activity_exists($args, $fa,
+      "$fa.flag_when $sql_operator $sql_date")
+      . ')';
+  }
 }
 
 sub _changedfrom_changedto {
@@ -3729,6 +3749,13 @@ sub _changedby {
   $args->{term} = "$table.bug_when IS NOT NULL";
   $self->_changed_security_check($args, $join);
   push(@$joins, $join);
+
+  # Flag changes are in flag_activity.
+  if ($field eq 'anything') {
+    my $fa = "flag_act_$chart_id";
+    $args->{term} = "($args->{term} OR "
+      . $self->_flag_activity_exists($args, $fa, "$fa.who = $user_id") . ')';
+  }
 }
 
 sub _changed_security_check {
@@ -3759,14 +3786,13 @@ sub _flagtypes_changed {
   my ($self, $args) = @_;
   my $dbh = Bugzilla->dbh;
   $self->_convert_everchanged($args) if $args->{operator} eq 'everchanged';
-  my ($chart_id, $operator, $value, $bugs_table)
-    = @$args{qw(chart_id operator value bugs_table)};
+  my ($chart_id, $operator, $value) = @$args{qw(chart_id operator value)};
 
   $self->_do_operator_function($args);
   my $legacy_term = $args->{term};
 
-  my $fa    = "flag_act_$chart_id";
-  my @where = ("$fa.bug_id = $bugs_table.bug_id");
+  my $fa = "flag_act_$chart_id";
+  my @where;
 
   if ($operator =~ /^changed(before|after)$/) {
     my $sql_operator = $1 eq 'before' ? '<=' : '>=';
@@ -3791,13 +3817,21 @@ sub _flagtypes_changed {
          AND $match)";
   }
 
+  $args->{term} = "(($legacy_term) OR "
+    . $self->_flag_activity_exists($args, $fa, @where) . ')';
+}
+
+# SQL true when the bug has a flag_activity row $fa matching @where. Changes to
+# private attachments are hidden from non-insiders.
+sub _flag_activity_exists {
+  my ($self, $args, $fa, @where) = @_;
+  unshift @where, "$fa.bug_id = $args->{bugs_table}.bug_id";
   if (!$self->_user->is_insider) {
     push @where, "COALESCE((SELECT isprivate FROM attachments
                              WHERE attach_id = $fa.attachment_id), 0) = 0";
   }
-
-  $args->{term} = "(($legacy_term) OR EXISTS (SELECT 1 FROM flag_activity $fa
-                    WHERE " . join(' AND ', @where) . '))';
+  return "EXISTS (SELECT 1 FROM flag_activity $fa WHERE "
+    . join(' AND ', @where) . ')';
 }
 
 # SQL matching a flag_activity row against a history value like
