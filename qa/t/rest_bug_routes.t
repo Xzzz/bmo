@@ -62,6 +62,12 @@ $t->get_ok($url . 'rest/bug?quicksearch=public_bug&include_fields=id' =>
   ->status_is(200)
   ->json_is('/bugs/0/id' => 2);
 
+# 'load' asks quicksearch to redirect to the search form; the API ignores it.
+$t->get_ok(
+  $url . 'rest/bug?quicksearch=ALL&load=1&limit=1&include_fields=id' => $headers)
+  ->status_is(200)
+  ->json_is('/bugs/0/id' => 1);
+
 # Bug.possible_duplicates rejects unknown params and needs id or summary.
 $t->get_ok($url . 'rest/bug/possible_duplicates?summary=bug&foo=1' => $headers)
   ->status_is(400)

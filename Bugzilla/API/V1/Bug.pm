@@ -215,15 +215,25 @@ sub search {
   # Determine whether this is a quicksearch query
   if (exists $match_params->{quicksearch}) {
 
+    # Redirects call exit, which would end the Mojo worker: quicksearch
+    # redirects to the search form when 'load' is set, and Bugzilla::CGI->new
+    # redirects to urlbase on the attachment host unless it can't see the
+    # controller.
+    my $new_cgi = sub {
+      local Bugzilla->request_cache->{mojo_controller};
+      return Bugzilla::CGI->new(@_);
+    };
+
     # quicksearch() adds its params to those of Bugzilla->cgi and returns
     # them all. As on the legacy server, start from the request's other params
     # (limit, order...). Outside of a CGI request Bugzilla->cgi is built from
     # the command line (e.g. keywords=daemon), so it can't be used.
     my %other_params = %$match_params;
     my $searchstring = delete $other_params{quicksearch};
-    local Bugzilla->request_cache->{cgi} = Bugzilla::CGI->new(\%other_params);
+    delete $other_params{load};
+    local Bugzilla->request_cache->{cgi} = $new_cgi->(\%other_params);
     my $quicksearch = quicksearch($searchstring);
-    my $cgi         = Bugzilla::CGI->new($quicksearch);
+    my $cgi         = $new_cgi->($quicksearch);
     $match_params = $cgi->Vars;
   }
 
