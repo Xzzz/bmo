@@ -774,6 +774,7 @@ use constant ABSTRACT_SCHEMA => {
       flag_activity_type_id_idx     => ['type_id'],
       flag_activity_bug_id_idx      => ['bug_id'],
       flag_activity_status_when_idx => ['status', 'flag_when'],
+      flag_activity_who_idx         => ['who', 'flag_when'],
     ],
   },
 

@@ -4548,19 +4548,24 @@ sub _migrate_flag_state_activity {
 sub _add_flag_activity_who {
   my $dbh = Bugzilla->dbh;
 
-  return if $dbh->bz_column_info('flag_activity', 'who');
+  if (!$dbh->bz_column_info('flag_activity', 'who')) {
 
-  # Existing rows don't record who made the change; the setter is the best
-  # value available.
-  $dbh->bz_add_column('flag_activity', 'who',
-    {TYPE => 'INT3', REFERENCES => {TABLE => 'profiles', COLUMN => 'userid'}});
-  $dbh->do('UPDATE flag_activity SET who = setter_id');
-  $dbh->bz_alter_column('flag_activity', 'who',
-    {
-    TYPE       => 'INT3',
-    NOTNULL    => 1,
-    REFERENCES => {TABLE => 'profiles', COLUMN => 'userid'}
-    });
+    # Existing rows don't record who made the change; the setter is the best
+    # value available.
+    $dbh->bz_add_column('flag_activity', 'who',
+      {TYPE => 'INT3', REFERENCES => {TABLE => 'profiles', COLUMN => 'userid'}});
+    $dbh->do('UPDATE flag_activity SET who = setter_id');
+    $dbh->bz_alter_column('flag_activity', 'who',
+      {
+      TYPE       => 'INT3',
+      NOTNULL    => 1,
+      REFERENCES => {TABLE => 'profiles', COLUMN => 'userid'}
+      });
+  }
+
+  # For the user activity report and the changedby search.
+  $dbh->bz_add_index('flag_activity', 'flag_activity_who_idx',
+    [qw(who flag_when)]);
 }
 
 sub _remove_duo_recovery_codes {
