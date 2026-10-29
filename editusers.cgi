@@ -529,7 +529,7 @@ elsif ($action eq 'delete') {
       foreach my $flag (@{$bugs{$bug_id}->{$attach_id}}) {
         Bugzilla::FlagActivity->create({
           flag_when     => $timestamp,
-          setter_id     => $userid,
+          setter_id     => $flag->setter_id,
           who           => $userid,
           status        => $flag->status,
           type_id       => $flag->type_id,
