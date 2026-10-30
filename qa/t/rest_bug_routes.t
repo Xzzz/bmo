@@ -101,7 +101,7 @@ foreach my $path ('rest/bug/public_bug', 'rest/bug?id=public_bug',
 
 # A needinfo_from that matches no one, or several people, is an error: the
 # confirmation page of the web UI can't be shown here.
-foreach my $from ('no-such-user\@example.invalid', 'mozilla.test') {
+foreach my $from ('no-such-user@example.invalid', 'mozilla.test') {
   $t->put_ok($url . 'rest/bug/public_bug' => $headers => json =>
       {needinfo => 1, needinfo_from => $from, comment => {body => 'needinfo'}})
     ->status_is(400)
