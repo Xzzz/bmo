@@ -1101,6 +1101,12 @@ sub _get_diffs {
           ORDER BY bug_when, field_desc, activity_id", {Slice => {}},
     @args, $bug->id, ($bug->lastdiffed ? ($bug->lastdiffed, $end) : ())
   );
+
+  # As in history, skip a request that left a flag as it was, such as a flag
+  # created and removed at once.
+  @$diffs
+    = grep { $_->{field_name} ne 'flagtypes.name' || $_->{old} ne $_->{new} }
+    @$diffs;
   my $referenced_bugs = [];
 
   foreach my $diff (@$diffs) {

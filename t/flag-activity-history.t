@@ -129,4 +129,16 @@ $expected = [
 is($history, $expected, 'history: one net change per request');
 is($mail,    $expected, 'bugmail: one net change per request');
 
+# A flag created and removed in one request changes nothing: neither history
+# nor bugmail show it.
+my $no_change_bug = new_bug('no change');
+add_flag_activity($no_change_bug, '2026-03-01 10:00:00', 44, $alice, $bob->id,
+  '?');
+add_flag_activity($no_change_bug, '2026-03-01 10:00:00', 44, $alice, undef,
+  'X');
+
+($history, $mail) = flag_changes($no_change_bug);
+is($history, [], 'history: no change for a flag created and removed');
+is($mail,    [], 'bugmail: no change for a flag created and removed');
+
 done_testing;
