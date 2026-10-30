@@ -10,8 +10,8 @@
 # Tests for the REST bug routes not covered by the  #
 # per-method tests: Bug.get permissive mode,        #
 # GET /rest/bug/, quicksearch, the                  #
-# Bug.possible_duplicates param checks, ETag and    #
-# OPTIONS                                           #
+# Bug.possible_duplicates param checks, ETag,       #
+# needinfo_from matches and OPTIONS                 #
 #####################################################
 
 use 5.10.1;
@@ -97,6 +97,15 @@ foreach my $path ('rest/bug/public_bug', 'rest/bug?id=public_bug',
     ->status_is(304)->content_is('');
   $t->get_ok($url . $path => {%$headers, 'If-None-Match' => '"stale"'})
     ->status_is(200);
+}
+
+# A needinfo_from that matches no one, or several people, is an error: the
+# confirmation page of the web UI can't be shown here.
+foreach my $from ('no-such-user\@example.invalid', 'mozilla.test') {
+  $t->put_ok($url . 'rest/bug/public_bug' => $headers => json =>
+      {needinfo => 1, needinfo_from => $from, comment => {body => 'needinfo'}})
+    ->status_is(400)
+    ->json_like('/message' => qr/cannot make a conclusive match/);
 }
 
 # OPTIONS lists the methods of each route.

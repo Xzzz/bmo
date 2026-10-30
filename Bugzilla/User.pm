@@ -2396,6 +2396,13 @@ sub match_field {
     return wantarray ? ($retval, \@non_conclusive_fields) : $retval;
   }
 
+  # A web service client can't be shown the confirmation page.
+  if (i_am_webservice()) {
+    ThrowUserError('user_match_too_many', {fields => \@non_conclusive_fields})
+      if @non_conclusive_fields;
+    return wantarray ? ($retval, \@non_conclusive_fields) : $retval;
+  }
+
   my $template = Bugzilla->template;
   my $cgi      = Bugzilla->cgi;
   my $vars     = {};
