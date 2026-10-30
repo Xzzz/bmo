@@ -851,6 +851,11 @@ sub update_table_definitions {
   # Bug 1806896 - xavier.lhour@gmail.com
   _migrate_flag_state_activity();
 
+  # Bug 2085398 - xavier.lhour@gmail.com
+  # After _migrate_flag_state_activity, so that flags with copied rows are
+  # skipped.
+  _add_flag_activity_start_rows();
+
   # Bug 2060356 - dkl@mozilla.com
   _remove_duo_recovery_codes();
 
@@ -4543,6 +4548,35 @@ sub _migrate_flag_state_activity {
   );
 
   $dbh->bz_drop_table('flag_state_activity');
+}
+
+# Until 2026-07-29, flag_activity only logged review, feedback and needinfo
+# flags. Other flags last changed before then have no row there, so their next
+# change would show no previous value in history and bugmail. Give each of them
+# a row with its current state, dated at its last change: history and bugmail
+# don't show it, as it isn't newer than that change in bugs_activity.
+sub _add_flag_activity_start_rows {
+  my $dbh = Bugzilla->dbh;
+  my ($max_id) = $dbh->selectrow_array('SELECT MAX(id) FROM flags');
+  return unless $max_id;
+
+  my $batch_size = 10_000;
+  my $added      = 0;
+  for (my $from = 0; $from < $max_id; $from += $batch_size) {
+    $added += $dbh->do(
+      'INSERT INTO flag_activity
+         (flag_when, type_id, flag_id, setter_id, who, requestee_id, bug_id,
+          attachment_id, status)
+       SELECT modification_date, type_id, id, setter_id, setter_id,
+              requestee_id, bug_id, attach_id, status
+         FROM flags
+        WHERE id > ? AND id <= ?
+              AND NOT EXISTS (SELECT 1 FROM flag_activity
+                               WHERE flag_activity.flag_id = flags.id)',
+      undef, $from, $from + $batch_size
+    );
+  }
+  print "Added a flag_activity row for $added flags.\n" if $added > 0;
 }
 
 sub _add_flag_activity_who {
