@@ -39,8 +39,10 @@ use constant PUBLIC_METHODS => qw(
 sub run_last_changes {
   my ($self, $params) = @_;
 
-  my $dbh  = Bugzilla->dbh;
   my $user = Bugzilla->login(LOGIN_REQUIRED);
+
+  # Only reads from here, as Bug.history did.
+  my $dbh = Bugzilla->switch_to_shadow_db();
 
   my $last_comment_sql = "
         SELECT comment_id
