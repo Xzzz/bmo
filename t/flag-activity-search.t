@@ -107,6 +107,10 @@ is(search_anything(changedby => 'bob@bmo.test'), [$legacy_bug],
   'anything changedby bugs_activity');
 is(search_anything(changedafter => '2025-01-01'), [$current_bug],
   'anything changedafter');
+is(search_anything(changedto => 'review+'), [$legacy_bug, $current_bug],
+  'anything changedto');
+is(search_anything(changedfrom => 'review?(bob@bmo.test)'), [$current_bug],
+  'anything changedfrom');
 
 # An assignee whose only recent changes are flag changes isn't idle.
 my $owned_bug = create_bug(

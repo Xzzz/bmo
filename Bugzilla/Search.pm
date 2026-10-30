@@ -3718,6 +3718,16 @@ sub _changedfrom_changedto {
   $args->{term} = "$table.bug_when IS NOT NULL";
   $self->_changed_security_check($args, $join);
   push(@$joins, $join);
+
+  # Flag changes are in flag_activity.
+  if ($field eq 'anything') {
+    my $fa = "flag_act_$chart_id";
+    my $match
+      = _flag_state_changed_sql($chart_id, $fa, $operator, $args->{value});
+    $args->{term} = "($args->{term} OR "
+      . $self->_flag_activity_exists($args, $fa, $match) . ')'
+      if $match;
+  }
 }
 
 sub _changedby {
@@ -3803,18 +3813,10 @@ sub _flagtypes_changed {
     my $user_id = $value =~ /^\d+$/ ? $value : $self->_get_user_id($value);
     push @where, "$fa.who = $user_id";
   }
-  elsif ($operator eq 'changedto') {
-    my $match = _flag_state_match($fa, $value) or return;
+  else {    # changedto, changedfrom
+    my $match = _flag_state_changed_sql($chart_id, $fa, $operator, $value)
+      or return;
     push @where, $match;
-  }
-  else {    # changedfrom: the state before this change
-    my $prev  = "flag_prev_$chart_id";
-    my $match = _flag_state_match($prev, $value) or return;
-    push @where, "EXISTS (
-      SELECT 1 FROM flag_activity $prev
-       WHERE $prev.id = (SELECT MAX(p2.id) FROM flag_activity p2
-                          WHERE p2.flag_id = $fa.flag_id AND p2.id < $fa.id)
-         AND $match)";
   }
 
   $args->{term} = "(($legacy_term) OR "
@@ -3837,6 +3839,21 @@ sub _flag_activity_exists {
 # SQL matching a flag_activity row against a history value like
 # "review+" or "review?(user@example.com)". Returns nothing if the value
 # isn't a flag state.
+# SQL condition on flag_activity row $fa for changedto or changedfrom $value
+# (the state before this change), or undef if $value isn't a flag state.
+sub _flag_state_changed_sql {
+  my ($chart_id, $fa, $operator, $value) = @_;
+  return _flag_state_match($fa, $value) if $operator eq 'changedto';
+
+  my $prev  = "flag_prev_$chart_id";
+  my $match = _flag_state_match($prev, $value) or return undef;
+  return "EXISTS (
+      SELECT 1 FROM flag_activity $prev
+       WHERE $prev.id = (SELECT MAX(p2.id) FROM flag_activity p2
+                          WHERE p2.flag_id = $fa.flag_id AND p2.id < $fa.id)
+         AND $match)";
+}
+
 sub _flag_state_match {
   my ($table, $value) = @_;
   my $dbh = Bugzilla->dbh;
