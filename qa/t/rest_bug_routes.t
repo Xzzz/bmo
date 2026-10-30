@@ -99,6 +99,19 @@ foreach my $path ('rest/bug/public_bug', 'rest/bug?id=public_bug',
     ->status_is(200);
 }
 
+# The last_change_time condition doesn't replace the caller's custom search
+# conditions, whatever their numbers.
+$t->get_ok($url
+    . 'rest/bug?f1=bug_id&o1=equals&v1=2'
+    . '&last_change_time=1970-01-01T00:00:00Z&include_fields=id' => $headers)
+  ->status_is(200)
+  ->json_is('/bugs/0/id' => 2);
+$t->get_ok($url
+    . 'rest/bug?f1=bug_id&o1=equals&v1=2&f3=short_desc&o3=equals&v3=no-such-summary'
+    . '&last_change_time=1970-01-01T00:00:00Z&include_fields=id' => $headers)
+  ->status_is(200)
+  ->json_hasnt('/bugs/0');
+
 # A needinfo_from that matches no one, or several people, is an error: the
 # confirmation page of the web UI can't be shown here.
 foreach my $from ('no-such-user@example.invalid', 'mozilla.test') {

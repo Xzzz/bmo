@@ -267,9 +267,10 @@ sub search {
 
   my %options = (fields => ['bug_id']);
 
-  # Find the highest custom field id
-  my @field_ids     = grep(/^f(\d+)$/, keys %$match_params);
-  my $last_field_id = @field_ids ? max @field_ids + 1 : 1;
+  # After the highest custom field number, so that the conditions added below
+  # don't replace the caller's.
+  my $last_field_id
+    = max(0, map { /^f(\d+)$/ ? $1 : () } keys %$match_params) + 1;
 
   # Do special search types for certain fields.
   if (my $change_when = delete $match_params->{'delta_ts'}) {
