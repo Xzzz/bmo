@@ -3153,49 +3153,27 @@ sub _deadline {
 
 sub _owner_idle_time_greater_less {
   my ($self, $args) = @_;
-  my ($chart_id, $joins, $value, $operator)
-    = @$args{qw(chart_id joins value operator)};
+  my ($chart_id, $value, $operator) = @$args{qw(chart_id value operator)};
   my $dbh = Bugzilla->dbh;
 
   my $table  = "idle_$chart_id";
   my $quoted = $dbh->quote(SqlifyDate($value));
+  my $owner  = "$args->{bugs_table}.assigned_to";
 
-  my $ld_table      = "comment_$table";
-  my $act_table     = "activity_$table";
-  my $comments_join = {
-    table => 'longdescs',
-    as    => $ld_table,
-    from  => 'assigned_to',
-    to    => 'who',
-    extra => ["$ld_table.bug_when > $quoted"],
-  };
-  my $activity_join = {
-    table => 'bugs_activity',
-    as    => $act_table,
-    from  => 'assigned_to',
-    to    => 'who',
-    extra => ["$act_table.bug_when > $quoted"]
-  };
+  # The assignee commented, changed a bug or changed a flag since $value. One
+  # EXISTS each, as joins would multiply their rows.
+  my $active = join(
+    ' OR ',
+    map {
+      my ($activity_table, $when) = @$_;
+      my $alias = "${activity_table}_$table";
+      "EXISTS (SELECT 1 FROM $activity_table $alias
+                WHERE $alias.who = $owner AND $alias.$when > $quoted)"
+    } (['longdescs', 'bug_when'], ['bugs_activity', 'bug_when'],
+      ['flag_activity', 'flag_when'])
+  );
 
-  my $flag_table = "flag_$table";
-  my $flag_join  = {
-    table => 'flag_activity',
-    as    => $flag_table,
-    from  => 'assigned_to',
-    to    => 'who',
-    extra => ["$flag_table.flag_when > $quoted"]
-  };
-
-  push(@$joins, $comments_join, $activity_join, $flag_join);
-
-  if ($operator =~ /greater/) {
-    $args->{term}
-      = "$ld_table.who IS NULL AND $act_table.who IS NULL AND $flag_table.who IS NULL";
-  }
-  else {
-    $args->{term}
-      = "($ld_table.who IS NOT NULL OR $act_table.who IS NOT NULL OR $flag_table.who IS NOT NULL)";
-  }
+  $args->{term} = $operator =~ /greater/ ? "NOT ($active)" : "($active)";
 }
 
 sub _multiselect_negative {
